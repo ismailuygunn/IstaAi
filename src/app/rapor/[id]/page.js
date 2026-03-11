@@ -292,7 +292,139 @@ export default function RaporPage() {
                     </CollapsibleSection>
                 )}
 
-                {/* Kanal Tedavisi Riski */}
+                {/* Diş Renk Analizi */}
+                {a.dis_renk_analizi && (
+                    <CollapsibleSection icon="🎨" title="Diş Renk Analizi" subtitle={`Genel ton: ${a.dis_renk_analizi.genel_ton || "—"}`} defaultOpen={false}>
+                        <div className="report-content">
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                                <div className="plan-block"><strong>Hedef Shade:</strong> {a.dis_renk_analizi.hedef_shade || "—"}</div>
+                                <div className="plan-block"><strong>Beyazlatma:</strong> {a.dis_renk_analizi.beyazlatma_potansiyeli || "—"}</div>
+                            </div>
+                            {a.dis_renk_analizi.disler?.length > 0 && (
+                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+                                    <thead><tr><th style={thStyle}>Diş</th><th style={thStyle}>Mevcut</th><th style={thStyle}>Hedef</th><th style={thStyle}>Not</th></tr></thead>
+                                    <tbody>{a.dis_renk_analizi.disler.map((d, i) => (
+                                        <tr key={i}><td style={tdStyle}><span className="tooth-tag">{d.dis_no}</span></td><td style={tdStyle}>{d.mevcut}</td><td style={tdStyle}><strong>{d.hedef}</strong></td><td style={tdStyle}>{d.not}</td></tr>
+                                    ))}</tbody>
+                                </table>
+                            )}
+                        </div>
+                        <NotesPanel analysisId={record._id} section="renk" />
+                    </CollapsibleSection>
+                )}
+
+                {/* Dişeti Durumu */}
+                {a.diseti_durumu && (
+                    <CollapsibleSection icon="🦴" title="Dişeti Durumu" badge={<span className={`severity-badge ${a.diseti_durumu.genel === "sağlıklı" ? "low" : a.diseti_durumu.genel === "gingivitis" ? "medium" : "high"}`}>{a.diseti_durumu.genel}</span>} defaultOpen={false}>
+                        <div className="report-content">
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+                                <div className="plan-block"><strong>Biyotip:</strong> {a.diseti_durumu.biyotip || "—"}</div>
+                                <div className="plan-block"><strong>Enflamasyon:</strong> {a.diseti_durumu.enflamasyon_bolgeler || "Yok"}</div>
+                                <div className="plan-block"><strong>Papilla:</strong> {a.diseti_durumu.papilla_kaybi || "Yok"}</div>
+                            </div>
+                            {a.diseti_durumu.resesiyon?.length > 0 && (
+                                <div style={{ marginBottom: 8 }}>
+                                    <strong style={{ fontSize: "0.82rem" }}>Resesiyon:</strong>
+                                    {a.diseti_durumu.resesiyon.map((r, i) => (
+                                        <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+                                            <span className="tooth-tag">{r.dis_no}</span> <span>{r.mm}mm — Miller {r.miller_sinif}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {a.diseti_durumu.tedavi_onerisi && <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>💊 {a.diseti_durumu.tedavi_onerisi}</p>}
+                        </div>
+                        <NotesPanel analysisId={record._id} section="diseti" />
+                    </CollapsibleSection>
+                )}
+
+                {/* Gülüş Analizi */}
+                {a.gulus_analizi && (
+                    <CollapsibleSection icon="😁" title="Gülüş Analizi" badge={a.gulus_analizi.estetik_skor ? <span className="severity-badge medium">{a.gulus_analizi.estetik_skor}/10</span> : null} defaultOpen={false}>
+                        <div className="report-content">
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+                                <div className="plan-block"><strong>Gülüş Hattı:</strong> {a.gulus_analizi.gulus_hatti || "—"}</div>
+                                <div className="plan-block"><strong>Midline:</strong> {a.gulus_analizi.midline || "—"}</div>
+                                <div className="plan-block"><strong>Buccal Koridor:</strong> {a.gulus_analizi.buccal_koridor || "—"}</div>
+                                <div className="plan-block"><strong>Gingival Zenith:</strong> {a.gulus_analizi.gingival_zenith || "—"}</div>
+                                <div className="plan-block"><strong>Dudak Hattı:</strong> {a.gulus_analizi.dudak_hatti || "—"}</div>
+                            </div>
+                            {a.gulus_analizi.oneriler && <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>💡 {a.gulus_analizi.oneriler}</p>}
+                        </div>
+                        <NotesPanel analysisId={record._id} section="gulus" />
+                    </CollapsibleSection>
+                )}
+
+                {/* Mevcut Restorasyonlar */}
+                {a.mevcut_restorasyonlar?.length > 0 && (
+                    <CollapsibleSection icon="🔧" title="Mevcut Restorasyonlar" subtitle={`${a.mevcut_restorasyonlar.length} restorasyon`} defaultOpen={false}>
+                        <div className="report-content">
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+                                <thead><tr><th style={thStyle}>Diş</th><th style={thStyle}>Tip</th><th style={thStyle}>Malzeme</th><th style={thStyle}>Durum</th><th style={thStyle}>Not</th></tr></thead>
+                                <tbody>{a.mevcut_restorasyonlar.map((r, i) => (
+                                    <tr key={i}>
+                                        <td style={tdStyle}><span className="tooth-tag">{r.dis_no}</span></td>
+                                        <td style={tdStyle}>{r.tip}</td>
+                                        <td style={tdStyle}>{r.malzeme}</td>
+                                        <td style={tdStyle}><span className={`severity-badge ${r.durum === "iyi" ? "low" : r.durum === "değişmeli" ? "high" : "medium"}`}>{r.durum}</span></td>
+                                        <td style={tdStyle}>{r.not}</td>
+                                    </tr>
+                                ))}</tbody>
+                            </table>
+                        </div>
+                        <NotesPanel analysisId={record._id} section="restorasyonlar" />
+                    </CollapsibleSection>
+                )}
+
+                {/* Fonksiyonel Analiz */}
+                {a.fonksiyonel_analiz && (
+                    <CollapsibleSection icon="⚙️" title="Fonksiyonel Analiz" defaultOpen={false}>
+                        <div className="report-content">
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                                <div className="plan-block"><strong>Bruxism:</strong> {a.fonksiyonel_analiz.bruxism || "—"}</div>
+                                <div className="plan-block"><strong>Aşınma:</strong> {a.fonksiyonel_analiz.asinma_paterni || "—"}</div>
+                                <div className="plan-block"><strong>Çene Eklemi:</strong> {a.fonksiyonel_analiz.cene_eklemi || "—"}</div>
+                                <div className="plan-block"><strong>Gece Plağı:</strong> {a.fonksiyonel_analiz.gece_plagi || "—"}</div>
+                            </div>
+                            {a.fonksiyonel_analiz.asinma_bolgeler && <p style={{ marginTop: 8, fontSize: "0.85rem" }}>📍 {a.fonksiyonel_analiz.asinma_bolgeler}</p>}
+                            {a.fonksiyonel_analiz.oneriler && <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>💡 {a.fonksiyonel_analiz.oneriler}</p>}
+                        </div>
+                        <NotesPanel analysisId={record._id} section="fonksiyonel" />
+                    </CollapsibleSection>
+                )}
+
+                {/* Diş Oranları */}
+                {a.dis_oranlari && (
+                    <CollapsibleSection icon="📐" title="Diş Oranları ve Simetri" defaultOpen={false}>
+                        <div className="report-content">
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                                <div className="plan-block"><strong>Oran:</strong> {a.dis_oranlari.ust_anterior_oran || "—"}</div>
+                                <div className="plan-block"><strong>Simetri:</strong> {a.dis_oranlari.simetri || "—"}</div>
+                                <div className="plan-block"><strong>Golden Proportion:</strong> {a.dis_oranlari.golden_proportion || "—"}</div>
+                            </div>
+                            {a.dis_oranlari.oneriler && <p style={{ marginTop: 8, fontSize: "0.85rem", color: "var(--text-secondary)" }}>💡 {a.dis_oranlari.oneriler}</p>}
+                        </div>
+                        <NotesPanel analysisId={record._id} section="oranlar" />
+                    </CollapsibleSection>
+                )}
+
+                {/* Kemik Durumu */}
+                {a.kemik_durumu && (
+                    <CollapsibleSection icon="💀" title="Kemik Durumu" badge={<span className={`severity-badge ${a.kemik_durumu.genel_seviye === "normal" ? "low" : a.kemik_durumu.genel_seviye?.includes("ileri") ? "high" : "medium"}`}>{a.kemik_durumu.genel_seviye}</span>} defaultOpen={false}>
+                        <div className="report-content">
+                            {a.kemik_durumu.kayip_bolgeler?.length > 0 && a.kemik_durumu.kayip_bolgeler.map((k, i) => (
+                                <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                                    <span className="tooth-tag">{k.bolge}</span> <span>{k.seviye}</span>
+                                </div>
+                            ))}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+                                <div className="plan-block"><strong>Greft:</strong> {a.kemik_durumu.greft_ihtiyaci || "—"}</div>
+                                <div className="plan-block"><strong>Sinüs Lifting:</strong> {a.kemik_durumu.sinus_lifting || "—"}</div>
+                            </div>
+                        </div>
+                        <NotesPanel analysisId={record._id} section="kemik" />
+                    </CollapsibleSection>
+                )}
                 {a.kanal_tedavisi_riski?.riskli_disler?.length > 0 && (
                     <CollapsibleSection icon="🔬" title="Kanal Tedavisi Riski" badge={<SeverityBadge level={a.kanal_tedavisi_riski.risk_seviyesi} />} defaultOpen={false}>
                         <div className="report-content">
