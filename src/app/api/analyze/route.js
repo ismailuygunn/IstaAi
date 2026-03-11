@@ -20,7 +20,7 @@ export async function POST(request) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-preview-05-06" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro" });
 
     // Build image parts for Gemini
     const imageParts = images.map((img) => {
