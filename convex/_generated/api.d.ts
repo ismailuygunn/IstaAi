@@ -10,6 +10,7 @@
 
 import type * as analyses from "../analyses.js";
 import type * as notes from "../notes.js";
+import type * as training from "../training.js";
 
 import type {
   ApiFromModules,
@@ -20,6 +21,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   analyses: typeof analyses;
   notes: typeof notes;
+  training: typeof training;
 }>;
 
 /**

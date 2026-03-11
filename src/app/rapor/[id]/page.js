@@ -7,6 +7,7 @@ import { api } from "../../../../convex/_generated/api";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AnnotatedPhoto from "@/components/AnnotatedPhoto";
+import CorrectionPanel from "@/components/CorrectionPanel";
 
 const EXPECTATION_LABELS = {
     full_crown: "👑 Full Kaplama Kron",
@@ -142,6 +143,7 @@ export default function RaporPage() {
     const record = useQuery(api.analyses.getById, params.id ? { id: params.id } : "skip");
     const [shareToast, setShareToast] = useState(false);
     const [pdfLoading, setPdfLoading] = useState(false);
+    const [correctionOpen, setCorrectionOpen] = useState(false);
 
     if (record === undefined) return (<><Navbar /><div className="loading-container"><h2 className="loading-text">Rapor Yükleniyor...</h2></div></>);
     if (record === null) return (<><Navbar /><div className="loading-container"><h2 className="loading-text">Rapor Bulunamadı</h2><button className="btn btn-primary" style={{ marginTop: 24 }} onClick={() => router.push("/analiz")}>Yeni Analiz</button></div></>);
@@ -195,6 +197,22 @@ export default function RaporPage() {
                         </div>
                     )}
                 </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                    <button className={`btn ${correctionOpen ? "btn-primary" : "btn-secondary"}`} onClick={() => setCorrectionOpen(!correctionOpen)}>
+                        {correctionOpen ? "✕ Düzeltmeyi Kapat" : "✏️ Düzelt & Eğit"}
+                    </button>
+                </div>
+
+                {/* Correction Panel */}
+                {correctionOpen && (
+                    <CorrectionPanel
+                        record={record}
+                        analysis={a}
+                        onClose={() => setCorrectionOpen(false)}
+                    />
+                )}
 
                 {/* Fotoğraflar + AI İşaretlemeleri */}
                 {record.resolvedPhotos?.length > 0 && (
