@@ -3027,3 +3027,98 @@ img {
   gap: 10px;
   margin-top: 8px;
 }
+
+/* ===== ANNOTATED PHOTO (CANVAS) ===== */
+.annotated-photos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+}
+@media (max-width: 768px) {
+  .annotated-photos-grid { grid-template-columns: 1fr; }
+}
+.annotated-photo {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: var(--transition-base);
+}
+.annotated-photo:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+.annotated-photo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--bg-glass);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.annotated-photo-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.annotated-photo-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.annotated-badge {
+  background: var(--primary);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+.annotated-toggle {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  transition: var(--transition-fast);
+}
+.annotated-toggle.active {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.annotated-canvas-wrap {
+  padding: 4px;
+  background: #0a0a0a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.annotated-canvas-wrap canvas {
+  max-width: 100%;
+  height: auto;
+}
+.annotated-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-glass);
+}
+.annotated-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.annotated-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

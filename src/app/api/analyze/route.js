@@ -65,12 +65,33 @@ ${images.length > 4 ? "5. PANORAMİK: Radyolojik konvansiyon." : ""}
 Fotoğraflar: ${images.map((img, i) => `[Fotoğraf ${i + 1}: ${img.title}]`).join(", ")}
 
 ═══════════════════════════════════════════
+FOTOĞRAF İŞARETLEME TALİMATLARI (ÇOK ÖNEMLİ!)
+═══════════════════════════════════════════
+Her fotoğrafta gördüğün bulguları "foto_bulgular" altında listele.
+Her bulgu için fotoğraf üzerindeki YÜZDE BAZLI KOORDİNATLARI ver:
+- x: Sol kenardan yüzde (0=en sol, 100=en sağ)
+- y: Üst kenardan yüzde (0=en üst, 100=en alt)
+- Dişin fotoğraftaki GERÇEK konumunu tahmin et
+- Frontal fotoğrafta: Üst anterior dişler y=25-40, alt anterior y=45-60, üst premolar y=25-35 kenarlar, alt premolar y=55-65 kenarlar
+- Oklüzal fotoğrafta: Dişler daire şeklinde, anterior ortada, posterior kenarlarda
+- Birden çok dişi ayrı ayrı işaretle, her birinin kendi x,y koordinatını ver
+- HER TEDAVİ GEREKTİREN DİŞ İÇİN bir marker oluştur
+
+Tedavi tiplerine göre renk kodları:
+- "kron" = KIRMIZI daire — Full kaplama kron yapılacak dişler
+- "veneer" = YEŞİL daire — Veneer uygulanacak dişler
+- "implant" = MAVİ daire — İmplant yapılacak bölgeler (eksik dişler)
+- "kanal" = TURUNCU daire — Kanal tedavisi riski
+- "curuk" = SARI daire — Çürük/restorasyon
+- "cerrahi" = MOR daire — Cerrahi müdahale gereken bölge
+
+═══════════════════════════════════════════
 ÖNEMLİ TALİMATLAR
 ═══════════════════════════════════════════
 
 1. KISA VE ÖZ YAZ — her alan maks 1-2 cümle
 2. Sadece sorunlu dişleri listele
-3. Her fotoğrafta gördüğün önemli bulguları "foto_bulgular" altında belirt — hangi fotoğrafta (1-4 numara) hangi dişte ne gördüğünü yaz
+3. FOTOĞRAF İŞARETLEMELERİ ÇOK ÖNEMLİ — mümkün olduğunca çok diş işaretle
 4. VENEER/KRON analizi DETAYLI olsun:
    - Kesim miktarı (mm cinsinden tahmini)
    - Oklüzal kapanış durumu (Angle sınıfı, overjet, overbite)
@@ -97,13 +118,14 @@ SADECE JSON döndür:
   "foto_bulgular": [
     {
       "foto_no": 1,
-      "foto_tipi": "Fotoğraf türü (frontal/oklüzal üst/oklüzal alt/yarım açık/panoramik)",
-      "bulgular": [
+      "foto_tipi": "frontal/okluzal_ust/okluzal_alt/yarim_acik/panoramik",
+      "isaret": [
         {
-          "dis_no": "FDI no veya aralık (ör: 14-16)",
-          "konum": "Bu bulgunun fotoğraftaki yaklaşık konumu: sol-üst / sol-alt / orta-üst / orta-alt / sag-üst / sag-alt / orta",
-          "bulgu": "Kısa bulgu (maks 6 kelime)",
-          "renk": "red/yellow/blue/green (red=acil, yellow=dikkat, blue=tedavi-planı, green=iyi)"
+          "dis_no": "FDI numarası (tek diş, ör: 14)",
+          "x": 35,
+          "y": 40,
+          "tedavi_tipi": "kron/veneer/implant/kanal/curuk/cerrahi",
+          "etiket": "Kısa açıklama (maks 4 kelime, ör: Zirkonya kron gerekli)"
         }
       ]
     }

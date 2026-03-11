@@ -6,6 +6,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import AnnotatedPhoto from "@/components/AnnotatedPhoto";
 
 const EXPECTATION_LABELS = {
     full_crown: "👑 Full Kaplama Kron",
@@ -125,102 +126,11 @@ function NotesPanel({ analysisId, section }) {
     );
 }
 
-// Photo Gallery with AI annotation overlays
-function PhotoGallery({ photos, fotoBulgular }) {
-    const [lightbox, setLightbox] = useState(null);
-    if (!photos?.length) return null;
-
-    const MARKER_COLORS = { red: "#EF4444", yellow: "#F59E0B", blue: "#3B82F6", green: "#10B981" };
-    const POSITION_MAP = {
-        "sol-üst": { top: "10%", left: "10%" },
-        "sol-alt": { top: "70%", left: "10%" },
-        "orta-üst": { top: "10%", left: "40%" },
-        "orta-alt": { top: "70%", left: "40%" },
-        "orta": { top: "40%", left: "40%" },
-        "sag-üst": { top: "10%", right: "10%", left: "auto" },
-        "sag-alt": { top: "70%", right: "10%", left: "auto" },
-    };
-
-    const getBulgular = (photoIndex) => {
-        if (!fotoBulgular?.length) return [];
-        const item = fotoBulgular.find((f) => f.foto_no === photoIndex + 1);
-        return item?.bulgular || [];
-    };
-
-    return (
-        <>
-            <div className="photo-gallery-grid">
-                {photos.map((photo, idx) => {
-                    const bulgular = getBulgular(idx);
-                    return (
-                        <div key={idx} className="photo-gallery-item" onClick={() => setLightbox(idx)}>
-                            <div className="photo-wrapper">
-                                <img src={photo.base64} alt={photo.title} />
-                                {/* AI Annotation Markers */}
-                                {bulgular.map((b, bi) => {
-                                    const pos = POSITION_MAP[b.konum] || POSITION_MAP["orta"];
-                                    const color = MARKER_COLORS[b.renk] || MARKER_COLORS.yellow;
-                                    return (
-                                        <div key={bi} className="photo-marker" style={{ ...pos, borderColor: color, background: `${color}22` }}
-                                            title={`${b.dis_no}: ${b.bulgu}`}>
-                                            <span className="marker-dot" style={{ background: color }}></span>
-                                            <span className="marker-label" style={{ color }}>{b.dis_no}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <div className="photo-title">{photo.title}</div>
-                            {bulgular.length > 0 && (
-                                <div className="photo-badge">{bulgular.length} bulgu</div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Lightbox */}
-            {lightbox !== null && (
-                <div className="lightbox-overlay" onClick={() => setLightbox(null)}>
-                    <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-                        <button className="lightbox-close" onClick={() => setLightbox(null)}>✕</button>
-                        <div className="lightbox-photo-wrapper">
-                            <img src={photos[lightbox].base64} alt={photos[lightbox].title} />
-                            {getBulgular(lightbox).map((b, bi) => {
-                                const pos = POSITION_MAP[b.konum] || POSITION_MAP["orta"];
-                                const color = MARKER_COLORS[b.renk] || MARKER_COLORS.yellow;
-                                return (
-                                    <div key={bi} className="photo-marker lightbox-marker" style={{ ...pos, borderColor: color, background: `${color}33` }}>
-                                        <span className="marker-dot" style={{ background: color }}></span>
-                                        <span className="marker-label" style={{ color }}>{b.dis_no}</span>
-                                        <span className="marker-detail" style={{ color }}>{b.bulgu}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="lightbox-info">
-                            <h4>{photos[lightbox].title}</h4>
-                            {getBulgular(lightbox).length > 0 && (
-                                <div className="lightbox-findings">
-                                    {getBulgular(lightbox).map((b, bi) => (
-                                        <div key={bi} className="finding-row">
-                                            <span className="finding-dot" style={{ background: MARKER_COLORS[b.renk] || "#F59E0B" }}></span>
-                                            <span className="finding-tooth">{b.dis_no}</span>
-                                            <span className="finding-text">{b.bulgu}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                        <div className="lightbox-nav">
-                            <button disabled={lightbox === 0} onClick={() => setLightbox(lightbox - 1)}>◀ Önceki</button>
-                            <span>{lightbox + 1} / {photos.length}</span>
-                            <button disabled={lightbox === photos.length - 1} onClick={() => setLightbox(lightbox + 1)}>Sonraki ▶</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
-    );
+// getMarkers: extract markers from foto_bulgular for a specific photo index
+function getMarkers(fotoBulgular, photoIndex) {
+    if (!fotoBulgular?.length) return [];
+    const item = fotoBulgular.find((f) => f.foto_no === photoIndex + 1);
+    return item?.isaret || item?.bulgular || [];
 }
 
 const thStyle = { textAlign: "left", padding: "10px 12px", fontWeight: 600, fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" };
@@ -289,7 +199,16 @@ export default function RaporPage() {
                 {/* Fotoğraflar + AI İşaretlemeleri */}
                 {record.photos?.length > 0 && (
                     <CollapsibleSection icon="📸" title="Fotoğraflar ve AI Bulguları" subtitle={`${record.photos.length} fotoğraf analiz edildi`}>
-                        <PhotoGallery photos={record.photos} fotoBulgular={a.foto_bulgular} />
+                        <div className="annotated-photos-grid">
+                            {record.photos.map((photo, idx) => (
+                                <AnnotatedPhoto
+                                    key={idx}
+                                    src={photo.base64}
+                                    title={photo.title}
+                                    markers={getMarkers(a.foto_bulgular, idx)}
+                                />
+                            ))}
+                        </div>
                         <NotesPanel analysisId={params.id} section="fotograflar" />
                     </CollapsibleSection>
                 )}
