@@ -129,15 +129,18 @@ export async function POST(request) {
             doc.setFontSize(9);
 
             if (analysis.kron_tedavisi) {
+                checkPage();
                 doc.setFont(undefined, "bold");
                 doc.text("Kron: " + (analysis.kron_tedavisi.uygunluk ? "Uygun" : "Uygun Degil"), margin + 2, y);
                 doc.setFont(undefined, "normal");
                 y += 5;
                 if (analysis.kron_tedavisi.uygun_disler?.length) {
+                    checkPage();
                     doc.text(`Disler: ${analysis.kron_tedavisi.uygun_disler.join(", ")}`, margin + 2, y);
                     y += 5;
                 }
                 if (analysis.kron_tedavisi.malzeme) {
+                    checkPage();
                     const ml = doc.splitTextToSize(`Malzeme: ${tr(analysis.kron_tedavisi.malzeme)}`, pageWidth - margin * 2 - 5);
                     doc.text(ml, margin + 2, y);
                     y += ml.length * 4 + 2;
@@ -145,6 +148,7 @@ export async function POST(request) {
             }
 
             if (analysis.veneer_tedavisi) {
+                checkPage();
                 doc.setFont(undefined, "bold");
                 doc.text("Veneer: " + (analysis.veneer_tedavisi.uygunluk ? "Uygun" : "Uygun Degil"), margin + 2, y);
                 doc.setFont(undefined, "normal");
@@ -211,22 +215,26 @@ export async function POST(request) {
                 y += 5;
             }
             if (op.dis_araliklari) {
+                checkPage();
                 doc.text(`Araliklar: ${tr(op.dis_araliklari)}`, margin + 2, y); y += 5;
             }
             if (op.full_kaplama) {
+                checkPage();
                 if (op.full_kaplama.anterior) { doc.text(`  Anterior: ${tr(op.full_kaplama.anterior)}`, margin + 4, y); y += 4; }
                 if (op.full_kaplama.posterior) { doc.text(`  Posterior: ${tr(op.full_kaplama.posterior)}`, margin + 4, y); y += 4; }
             }
-            if (op.kanal_tedavisi) { doc.text(`Kanal: ${tr(op.kanal_tedavisi)}`, margin + 2, y); y += 5; }
-            if (op.implant) { doc.text(`Implant: ${tr(op.implant)}`, margin + 2, y); y += 5; }
-            if (op.cerrahi) { doc.text(`Cerrahi: ${tr(op.cerrahi)}`, margin + 2, y); y += 5; }
+            if (op.kanal_tedavisi) { checkPage(); doc.text(`Kanal: ${tr(op.kanal_tedavisi)}`, margin + 2, y); y += 5; }
+            if (op.implant) { checkPage(); doc.text(`Implant: ${tr(op.implant)}`, margin + 2, y); y += 5; }
+            if (op.cerrahi) { checkPage(); doc.text(`Cerrahi: ${tr(op.cerrahi)}`, margin + 2, y); y += 5; }
             if (op.tahmini_seans) {
+                checkPage();
                 doc.setFont(undefined, "bold");
                 doc.text(`Tahmini ${op.tahmini_seans} seans`, margin + 2, y);
                 doc.setFont(undefined, "normal");
                 y += 5;
             }
             if (op.notlar) {
+                checkPage();
                 const nl = doc.splitTextToSize(`Not: ${tr(op.notlar)}`, pageWidth - margin * 2 - 5);
                 doc.text(nl, margin + 2, y); y += nl.length * 4 + 2;
             }

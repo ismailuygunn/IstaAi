@@ -144,7 +144,7 @@ export default function AnalizPage() {
                 const cropH = Math.min(img.height - cropY, (maxY - minY) + padY * 2);
 
                 // Step 3: Crop and resize
-                const MAX = 1024;
+                const MAX = 768;
                 let w = cropW, h = cropH;
                 if (w > MAX || h > MAX) {
                     if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
@@ -157,7 +157,7 @@ export default function AnalizPage() {
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, w, h);
 
-                const base64 = canvas.toDataURL("image/jpeg", 0.75);
+                const base64 = canvas.toDataURL("image/jpeg", 0.55);
                 resolve(base64);
             };
             img.src = URL.createObjectURL(file);
@@ -259,28 +259,54 @@ export default function AnalizPage() {
                 }
             });
 
-            // Send to Gemini for analysis
-            const res = await fetch("/api/analyze", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ patientInfo: formData, images, expectations }),
-            });
+            // Send to Gemini for analysis (with retry on timeout)
+            const analyzeWithRetry = async (attempt = 1) => {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 55000); // 55s client timeout
 
-            if (!res.ok) {
-                const errText = await res.text().catch(() => "");
-                let errMsg = "Analiz sırasında bir hata oluştu";
                 try {
-                    const errData = JSON.parse(errText);
-                    errMsg = errData.error || errMsg;
-                } catch {
-                    if (res.status === 413) errMsg = "Fotoğraflar çok büyük.";
-                    else if (res.status === 504) errMsg = "Analiz zaman aşımına uğradı. Tekrar deneyin.";
-                    else errMsg = `Sunucu hatası (${res.status}): ${errText.slice(0, 100)}`;
-                }
-                throw new Error(errMsg);
-            }
+                    const res = await fetch("/api/analyze", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ patientInfo: formData, images, expectations }),
+                        signal: controller.signal,
+                    });
+                    clearTimeout(timeoutId);
 
-            const data = await res.json();
+                    if (!res.ok) {
+                        const errText = await res.text().catch(() => "");
+                        let errMsg = "Analiz sırasında bir hata oluştu";
+                        try {
+                            const errData = JSON.parse(errText);
+                            errMsg = errData.error || errMsg;
+                        } catch {
+                            if (res.status === 413) errMsg = "Fotoğraflar çok büyük.";
+                            else if (res.status === 504 || res.status === 408) {
+                                if (attempt < 2) {
+                                    setLoadingStep(0);
+                                    return analyzeWithRetry(attempt + 1);
+                                }
+                                errMsg = "Analiz zaman aşımına uğradı. Lütfen daha sonra tekrar deneyin.";
+                            }
+                            else errMsg = `Sunucu hatası (${res.status}): ${errText.slice(0, 100)}`;
+                        }
+                        throw new Error(errMsg);
+                    }
+                    return await res.json();
+                } catch (fetchErr) {
+                    clearTimeout(timeoutId);
+                    if (fetchErr.name === 'AbortError' || fetchErr.message === 'Load failed') {
+                        if (attempt < 2) {
+                            setLoadingStep(0);
+                            return analyzeWithRetry(attempt + 1);
+                        }
+                        throw new Error("Analiz zaman aşımına uğradı. Lütfen tekrar deneyin.");
+                    }
+                    throw fetchErr;
+                }
+            };
+
+            const data = await analyzeWithRetry();
 
             // Upload photos to Convex file storage (parallel)
             const photoStorageIds = await Promise.all(

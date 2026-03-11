@@ -284,6 +284,7 @@ export default function RaporPage() {
                                 </div>
                             ))}
                         </div>
+                        <NotesPanel analysisId={record._id} section="kanal" />
                     </CollapsibleSection>
                 )}
 
@@ -301,6 +302,7 @@ export default function RaporPage() {
                                 </div>
                             ))}
                         </div>
+                        <NotesPanel analysisId={record._id} section="implant" />
                     </CollapsibleSection>
                 )}
 

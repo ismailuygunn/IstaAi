@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export const maxDuration = 60;
+// Gemini 3.1 Pro + 4-5 fotoğraf analizi uzun sürebilir
+export const maxDuration = 300;
 
 const EXPECTATION_LABELS = {
     full_crown: "Full Kaplama Kron",
@@ -33,7 +34,9 @@ export async function POST(request) {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
+        // KESİN KURAL: Varsayılan model her zaman Gemini 3.1 Pro
+        const modelName = process.env.GEMINI_MODEL || "gemini-3.1-pro-preview";
+        const model = genAI.getGenerativeModel({ model: modelName });
 
         const imageParts = images.map((img) => {
             const matches = img.base64.match(/^data:(.+);base64,(.+)$/);

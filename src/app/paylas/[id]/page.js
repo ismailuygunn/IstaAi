@@ -3,6 +3,8 @@
 import { useParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 const EXPECTATION_LABELS = {
     full_crown: "👑 Full Kaplama Kron",
@@ -28,9 +30,11 @@ export default function PaylasPage() {
     if (record === undefined) {
         return (
             <div className="share-page">
+                <Navbar />
                 <div className="loading-container" style={{ minHeight: "60vh" }}>
                     <h2 className="loading-text">Rapor Yükleniyor...</h2>
                 </div>
+                <Footer />
             </div>
         );
     }
@@ -38,10 +42,12 @@ export default function PaylasPage() {
     if (record === null) {
         return (
             <div className="share-page">
+                <Navbar />
                 <div className="loading-container" style={{ minHeight: "60vh" }}>
                     <h2 className="loading-text">Rapor Bulunamadı</h2>
                     <p className="loading-subtext">Bu paylaşım linki geçersiz veya rapor silinmiş olabilir.</p>
                 </div>
+                <Footer />
             </div>
         );
     }
@@ -51,6 +57,7 @@ export default function PaylasPage() {
 
     return (
         <div className="share-page">
+            <Navbar />
             <div className="share-header">
                 <div className="share-logo">🦷 İSTADENTAL</div>
                 <div className="share-subtitle">AI Destekli Dental Analiz Raporu</div>
@@ -212,9 +219,10 @@ export default function PaylasPage() {
                 </div>
 
                 <div className="share-footer">
-                    <p>İSTADENTAL AI Dental Analiz © 2026</p>
+                    <p>İSTADENTAL AI Dental Analiz © {new Date().getFullYear()}</p>
                 </div>
             </div>
+            <Footer />
         </div>
     );
 }

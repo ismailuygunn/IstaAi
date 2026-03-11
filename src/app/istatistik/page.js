@@ -158,6 +158,37 @@ export default function IstatistikPage() {
                             </div>
                         </div>
 
+                        {/* Severity Distribution */}
+                        {(() => {
+                            const sevCounts = { iyi: 0, orta: 0, kotu: 0 };
+                            const sevLabels = { iyi: "✅ İyi", orta: "⚠️ Orta", kotu: "❌ Kötü" };
+                            const sevColors = { iyi: "#10B981", orta: "#F59E0B", kotu: "#EF4444" };
+                            analyses.forEach((a) => {
+                                try {
+                                    const data = JSON.parse(a.analysisResult);
+                                    const sev = data?.genel_degerlendirme?.seviye || "orta";
+                                    if (sevCounts[sev] !== undefined) sevCounts[sev]++;
+                                } catch {}
+                            });
+                            const maxSev = Math.max(...Object.values(sevCounts), 1);
+                            const hasSev = Object.values(sevCounts).some((c) => c > 0);
+                            if (!hasSev) return null;
+                            return (
+                                <div className="card">
+                                    <h3 className="stats-section-title">🩺 Genel Durum Dağılımı</h3>
+                                    {Object.entries(sevCounts).map(([key, count]) => (
+                                        <BarItem
+                                            key={key}
+                                            label={sevLabels[key] || key}
+                                            count={count}
+                                            max={maxSev}
+                                            color={sevColors[key] || "var(--primary)"}
+                                        />
+                                    ))}
+                                </div>
+                            );
+                        })()}
+
                         {/* Treatment Expectations */}
                         {sortedExps.length > 0 && (
                             <div className="card">

@@ -65,11 +65,23 @@ export default function GecmisPage() {
         return items;
     }, [analyses, search, dateFilter]);
 
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
     const handleDelete = async (id, e) => {
         e.stopPropagation();
-        if (confirm("Bu analizi silmek istediğinizden emin misiniz?")) {
+        if (deleteConfirmId === id) {
             await removeAnalysis({ id });
+            setDeleteConfirmId(null);
+        } else {
+            setDeleteConfirmId(id);
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => setDeleteConfirmId((prev) => prev === id ? null : prev), 5000);
         }
+    };
+
+    const cancelDelete = (e) => {
+        e.stopPropagation();
+        setDeleteConfirmId(null);
     };
 
     return (
@@ -167,7 +179,14 @@ export default function GecmisPage() {
                                                 </div>
                                                 <div className="history-card-actions">
                                                     <button className="btn btn-sm btn-primary" onClick={(e) => { e.stopPropagation(); router.push(`/rapor/${item._id}`); }}>Rapor</button>
-                                                    <button className="btn btn-sm btn-secondary" style={{ color: "var(--danger)" }} onClick={(e) => handleDelete(item._id, e)}>Sil</button>
+                                                    {deleteConfirmId === item._id ? (
+                                                        <>
+                                                            <button className="btn btn-sm" style={{ color: "#fff", background: "var(--danger)", fontSize: "0.75rem" }} onClick={(e) => handleDelete(item._id, e)}>Emin misin?</button>
+                                                            <button className="btn btn-sm btn-secondary" style={{ fontSize: "0.75rem" }} onClick={cancelDelete}>İptal</button>
+                                                        </>
+                                                    ) : (
+                                                        <button className="btn btn-sm btn-secondary" style={{ color: "var(--danger)" }} onClick={(e) => handleDelete(item._id, e)}>Sil</button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>

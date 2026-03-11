@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
 
 export default function Footer() {
+    const year = new Date().getFullYear();
+
     return (
         <footer className="footer">
             <div className="footer-inner">
@@ -18,11 +22,12 @@ export default function Footer() {
                 <div className="footer-links">
                     <Link href="/">Ana Sayfa</Link>
                     <Link href="/analiz">AI Analiz</Link>
+                    <Link href="/gecmis">Geçmiş</Link>
                     <a href="https://istadentalclinic.com" target="_blank" rel="noopener noreferrer">İSTADENTAL Clinic</a>
                 </div>
 
                 <p className="footer-copy">
-                    © 2026 İSTADENTAL. AI destekli analiz sonuçları bilgilendirme amaçlıdır, kesin tanı için diş hekiminize danışınız.
+                    © {year} İSTADENTAL. AI destekli analiz sonuçları bilgilendirme amaçlıdır, kesin tanı için diş hekiminize danışınız.
                 </p>
             </div>
         </footer>

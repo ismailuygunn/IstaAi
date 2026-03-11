@@ -16,7 +16,7 @@ function getToothClass(toothNum, disList) {
     const dis = disList.find((d) => String(d.dis_no) === String(toothNum));
     if (!dis) return "healthy";
     const cat = (dis.kategori || "").toLowerCase();
-    if (cat === "crown") return "crown-needed";
+    if (cat === "crown" || cat === "bridge") return "crown-needed";
     if (cat === "veneer") return "veneer-candidate";
     if (cat === "implant" || cat === "missing") return "implant-needed";
     if (cat === "canal") return "canal-risk";

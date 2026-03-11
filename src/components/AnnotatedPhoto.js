@@ -33,6 +33,28 @@ export default function AnnotatedPhoto({ src, markers = [], title = "" }) {
 
         const img = new Image();
         img.crossOrigin = "anonymous";
+        img.onerror = () => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const container = containerRef.current;
+            const w = container ? container.clientWidth : 400;
+            const h = Math.round(w * 0.6);
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+            canvas.style.width = w + "px";
+            canvas.style.height = h + "px";
+            const ctx = canvas.getContext("2d");
+            ctx.scale(dpr, dpr);
+            ctx.fillStyle = "rgba(15, 23, 42, 0.8)";
+            ctx.fillRect(0, 0, w, h);
+            ctx.fillStyle = "#94A3B8";
+            ctx.font = "14px 'Outfit', 'Inter', sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("⚠️ Fotoğraf yüklenemedi", w / 2, h / 2);
+            setDimensions({ w, h });
+        };
         img.onload = () => {
             const canvas = canvasRef.current;
             if (!canvas) return;
