@@ -1,5 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// Vercel: extend serverless function timeout to 60s (Gemini needs time)
+export const maxDuration = 60;
+
 // Treatment expectation labels for prompt building
 const EXPECTATION_LABELS = {
     full_crown: "Full Kaplama Kron (Zirkonya, Metal Seramik, E-max)",
@@ -195,8 +198,19 @@ SADECE JSON döndür, başka hiçbir şey yazma:
         return Response.json({ analysis });
     } catch (err) {
         console.error("API Route Error:", err);
+        const msg = err.message || "Bilinmeyen hata";
+        // Extract more useful error for user
+        if (msg.includes("is not found") || msg.includes("not supported")) {
+            return Response.json({ error: "Gemini model hatası: " + msg }, { status: 500 });
+        }
+        if (msg.includes("SAFETY") || msg.includes("blocked")) {
+            return Response.json({ error: "Fotoğraflar güvenlik filtresi tarafından engellendi. Lütfen farklı fotoğraflar deneyin." }, { status: 400 });
+        }
+        if (msg.includes("quota") || msg.includes("429")) {
+            return Response.json({ error: "API kotası aşıldı. Lütfen birkaç dakika sonra tekrar deneyin." }, { status: 429 });
+        }
         return Response.json(
-            { error: "Sunucu hatası: " + err.message },
+            { error: "Sunucu hatası: " + msg },
             { status: 500 }
         );
     }
