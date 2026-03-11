@@ -7,6 +7,17 @@ import { api } from "../../../convex/_generated/api";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
+const TREATMENT_EXPECTATIONS = [
+    { id: "full_crown", label: "Full Kaplama Kron", icon: "👑", desc: "Zirkonya, Metal Seramik, E-max" },
+    { id: "monolithic", label: "Monolitik Kron", icon: "💎", desc: "Tek parça, dayanıklı kron" },
+    { id: "veneer", label: "Laminate Veneer", icon: "✨", desc: "İnce porselen kaplama" },
+    { id: "implant", label: "İmplant", icon: "🔩", desc: "Eksik diş yerine titanyum vida" },
+    { id: "bridge", label: "Köprü Protez", icon: "🌉", desc: "Komşu dişlere destekli köprü" },
+    { id: "composite", label: "Kompozit Bonding", icon: "🎨", desc: "Dolgu ile estetik düzeltme" },
+    { id: "whitening", label: "Diş Beyazlatma", icon: "⚪", desc: "Profesyonel beyazlatma" },
+    { id: "orthodontic", label: "Ortodonti", icon: "😁", desc: "Diş teli veya şeffaf plak" },
+];
+
 const PHOTO_SLOTS = [
     {
         id: "mouth_closed",
@@ -57,6 +68,7 @@ export default function AnalizPage() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [loadingStep, setLoadingStep] = useState(0);
     const [error, setError] = useState(null);
+    const [stepDirection, setStepDirection] = useState("forward");
 
     // Patient info
     const [formData, setFormData] = useState({
@@ -69,6 +81,9 @@ export default function AnalizPage() {
         existingTreatments: "",
     });
 
+    // Expectations
+    const [expectations, setExpectations] = useState([]);
+
     // Photos
     const [photos, setPhotos] = useState({});
     const fileInputRefs = useRef({});
@@ -78,6 +93,12 @@ export default function AnalizPage() {
 
     const handleFormChange = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const toggleExpectation = (id) => {
+        setExpectations((prev) =>
+            prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]
+        );
     };
 
     const handlePhotoDrop = useCallback((slotId, e) => {
@@ -120,15 +141,22 @@ export default function AnalizPage() {
     const formValid =
         formData.fullName.trim() && formData.age && formData.gender && formData.complaint.trim();
 
+    const goToStep = (target) => {
+        setStepDirection(target > step ? "forward" : "backward");
+        setStep(target);
+    };
+
     const loadingMessages = [
-        "Fotoğraflar analiz ediliyor...",
-        "Diş yapıları tespit ediliyor...",
-        "Kron uygunluğu değerlendiriliyor...",
-        "Veneer fizibilitesi inceleniyor...",
+        "Fotoğraflar yükleniyor ve işleniyor...",
+        "FDI numaralama sistemi ile dişler tespit ediliyor...",
+        "Frontal ve oklüzal görüntüler çapraz doğrulanıyor...",
+        "Kron ve full kaplama uygunluğu değerlendiriliyor...",
+        "Veneer fizibilitesi ve estetik analiz yapılıyor...",
         "Kanal tedavisi riskleri hesaplanıyor...",
-        "İmplant gereksinimleri belirleniyor...",
-        "Tedavi planı oluşturuluyor...",
-        "Rapor hazırlanıyor...",
+        "İmplant ve köprü gereksinimleri belirleniyor...",
+        "Malzeme karşılaştırmaları oluşturuluyor...",
+        "Tedavi planı ve öncelik sıralaması hazırlanıyor...",
+        "Kapsamlı rapor oluşturuluyor...",
     ];
 
     const handleSubmit = async () => {
@@ -141,10 +169,9 @@ export default function AnalizPage() {
                 if (prev < loadingMessages.length - 1) return prev + 1;
                 return prev;
             });
-        }, 3000);
+        }, 3500);
 
         try {
-            // Build images array
             const images = [];
             PHOTO_SLOTS.forEach((slot) => {
                 if (photos[slot.id]) {
@@ -159,7 +186,7 @@ export default function AnalizPage() {
             const res = await fetch("/api/analyze", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ patientInfo: formData, images }),
+                body: JSON.stringify({ patientInfo: formData, images, expectations }),
             });
 
             if (!res.ok) {
@@ -170,7 +197,6 @@ export default function AnalizPage() {
             const data = await res.json();
             clearInterval(interval);
 
-            // Save to Convex database
             const analysisId = await createAnalysis({
                 patientName: formData.fullName,
                 patientAge: formData.age,
@@ -179,12 +205,12 @@ export default function AnalizPage() {
                 dentalHistory: formData.dentalHistory || undefined,
                 allergies: formData.allergies || undefined,
                 existingTreatments: formData.existingTreatments || undefined,
+                expectations: expectations.length > 0 ? expectations : undefined,
                 photoCount: images.length,
                 photoTypes: images.map((img) => img.id),
                 analysisResult: JSON.stringify(data.analysis),
             });
 
-            // Navigate to report page with Convex ID
             router.push(`/rapor/${analysisId}`);
         } catch (err) {
             clearInterval(interval);
@@ -195,6 +221,7 @@ export default function AnalizPage() {
 
     // Loading screen
     if (isAnalyzing) {
+        const progress = ((loadingStep + 1) / loadingMessages.length) * 100;
         return (
             <>
                 <Navbar />
@@ -205,12 +232,26 @@ export default function AnalizPage() {
                             <path d="M60 110C60 110 58 112 55 112C52 112 50 110 50 110C50 95 48 75 42 58C38 48 30 38 28 48C24 65 32 90 35 105" fill="#60A5FA" opacity="0.4" />
                         </svg>
                     </div>
-                    <div className="loading-bar">
-                        <div className="loading-bar-fill"></div>
+
+                    <div className="loading-progress-ring">
+                        <svg viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="6" />
+                            <circle cx="50" cy="50" r="42" fill="none" stroke="url(#progressGradient)" strokeWidth="6"
+                                strokeLinecap="round" strokeDasharray={`${progress * 2.64} 264`}
+                                style={{ transition: "stroke-dasharray 0.6s ease", transform: "rotate(-90deg)", transformOrigin: "center" }} />
+                            <defs>
+                                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stopColor="#2563EB" />
+                                    <stop offset="100%" stopColor="#00D4FF" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <span className="loading-progress-text">{Math.round(progress)}%</span>
                     </div>
+
                     <h2 className="loading-text">AI Analiz Devam Ediyor</h2>
                     <p className="loading-subtext">
-                        Yapay zeka fotoğraflarınızı detaylı olarak inceliyor
+                        Gemini 3.1 Pro fotoğraflarınızı detaylı olarak inceliyor
                     </p>
                     <div className="loading-steps">
                         {loadingMessages.map((msg, i) => (
@@ -228,6 +269,8 @@ export default function AnalizPage() {
         );
     }
 
+    const STEP_LABELS = ["Bilgiler", "Beklentiler", "Fotoğraflar", "Analiz"];
+
     return (
         <>
             <Navbar />
@@ -240,305 +283,398 @@ export default function AnalizPage() {
 
                 {/* Step Indicator */}
                 <div className="step-indicator">
-                    <div className={`step-dot ${step >= 1 ? "active" : ""} ${step > 1 ? "completed" : ""}`}>
-                        <div className="step-dot-circle">{step > 1 ? "✓" : "1"}</div>
-                        <span className="step-dot-label">Bilgiler</span>
-                    </div>
-                    <div className={`step-line ${step > 1 ? "active" : ""}`}></div>
-                    <div className={`step-dot ${step >= 2 ? "active" : ""} ${step > 2 ? "completed" : ""}`}>
-                        <div className="step-dot-circle">{step > 2 ? "✓" : "2"}</div>
-                        <span className="step-dot-label">Fotoğraflar</span>
-                    </div>
-                    <div className={`step-line ${step > 2 ? "active" : ""}`}></div>
-                    <div className={`step-dot ${step >= 3 ? "active" : ""}`}>
-                        <div className="step-dot-circle">3</div>
-                        <span className="step-dot-label">Analiz</span>
-                    </div>
+                    {STEP_LABELS.map((label, idx) => {
+                        const stepNum = idx + 1;
+                        return (
+                            <div key={label} style={{ display: "contents" }}>
+                                {idx > 0 && (
+                                    <div className={`step-line ${step > idx ? "active" : ""}`}></div>
+                                )}
+                                <div className={`step-dot ${step >= stepNum ? "active" : ""} ${step > stepNum ? "completed" : ""}`}>
+                                    <div className="step-dot-circle">{step > stepNum ? "✓" : stepNum}</div>
+                                    <span className="step-dot-label">{label}</span>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {error && (
-                    <div style={{ background: 'var(--danger-bg)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', marginBottom: 'var(--space-lg)', color: 'var(--danger)', fontSize: '0.9rem' }}>
-                        ⚠️ {error}
+                    <div className="error-banner">
+                        <span className="error-icon">⚠️</span>
+                        <span>{error}</span>
+                        <button className="error-close" onClick={() => setError(null)}>✕</button>
                     </div>
                 )}
 
                 {/* STEP 1: Patient Info */}
-                {step === 1 && (
-                    <div className="card">
-                        <h2 style={{ marginBottom: 'var(--space-lg)', fontSize: '1.3rem' }}>
-                            📋 Hasta Bilgileri
-                        </h2>
+                <div className={`wizard-step ${step === 1 ? "active" : ""} ${step > 1 ? "exit-left" : ""}`}>
+                    {step === 1 && (
+                        <div className="card animate-in">
+                            <h2 className="card-title">
+                                <span className="card-title-icon">📋</span>
+                                Hasta Bilgileri
+                            </h2>
 
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">
-                                    Ad Soyad <span className="required">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="Adınız ve soyadınız"
-                                    value={formData.fullName}
-                                    onChange={(e) => handleFormChange("fullName", e.target.value)}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">
-                                    Yaş <span className="required">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    className="form-input"
-                                    placeholder="Yaşınız"
-                                    min="1"
-                                    max="120"
-                                    value={formData.age}
-                                    onChange={(e) => handleFormChange("age", e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">
-                                    Cinsiyet <span className="required">*</span>
-                                </label>
-                                <select
-                                    className="form-select"
-                                    value={formData.gender}
-                                    onChange={(e) => handleFormChange("gender", e.target.value)}
-                                >
-                                    <option value="">Seçiniz</option>
-                                    <option value="erkek">Erkek</option>
-                                    <option value="kadın">Kadın</option>
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Alerjiler</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    placeholder="Bilinen alerjileriniz (varsa)"
-                                    value={formData.allergies}
-                                    onChange={(e) => handleFormChange("allergies", e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">
-                                Şikayet / İstek <span className="required">*</span>
-                            </label>
-                            <textarea
-                                className="form-textarea"
-                                placeholder="Örn: Ön dişlerimde estetik görünüm istiyorum, arka dişlerimde çürük var..."
-                                value={formData.complaint}
-                                onChange={(e) => handleFormChange("complaint", e.target.value)}
-                                rows={3}
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Dental Geçmiş</label>
-                            <textarea
-                                className="form-textarea"
-                                placeholder="Daha önce yapılan tedaviler, bilinen dental sorunlar..."
-                                value={formData.dentalHistory}
-                                onChange={(e) => handleFormChange("dentalHistory", e.target.value)}
-                                rows={2}
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Mevcut Tedaviler</label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                placeholder="Şu an devam eden tedaviler (varsa)"
-                                value={formData.existingTreatments}
-                                onChange={(e) => handleFormChange("existingTreatments", e.target.value)}
-                            />
-                        </div>
-
-                        <div className="wizard-actions">
-                            <div></div>
-                            <button
-                                className="btn btn-primary"
-                                disabled={!formValid}
-                                onClick={() => setStep(2)}
-                            >
-                                Devam →
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* STEP 2: Photo Upload */}
-                {step === 2 && (
-                    <div className="card">
-                        <h2 style={{ marginBottom: 'var(--space-md)', fontSize: '1.3rem' }}>
-                            📸 Fotoğraf Yükleme
-                        </h2>
-
-                        <div className="upload-guide">
-                            <h3>💡 İpuçları</h3>
-                            <ul>
-                                <li>Net ve iyi aydınlatılmış fotoğraflar daha doğru analiz sağlar</li>
-                                <li>Ağız içi ayna kullanarak alt/üst çene fotoğrafları çekin</li>
-                                <li>Fotoğraflar JPEG veya PNG formatında, max 20MB olmalıdır</li>
-                                <li>Panoramik röntgen yüklenmesi analiz kalitesini artırır</li>
-                            </ul>
-                        </div>
-
-                        <div className="upload-grid">
-                            {PHOTO_SLOTS.map((slot) => (
-                                <div
-                                    key={slot.id}
-                                    className={`upload-slot ${photos[slot.id] ? "has-image" : ""} ${!slot.required ? "optional" : ""}`}
-                                    onClick={() => {
-                                        if (!photos[slot.id]) {
-                                            fileInputRefs.current[slot.id]?.click();
-                                        }
-                                    }}
-                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                                    onDrop={(e) => handlePhotoDrop(slot.id, e)}
-                                >
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Ad Soyad <span className="required">*</span>
+                                    </label>
                                     <input
-                                        type="file"
-                                        accept="image/*"
-                                        ref={(el) => (fileInputRefs.current[slot.id] = el)}
-                                        onChange={(e) => handlePhotoDrop(slot.id, e)}
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Adınız ve soyadınız"
+                                        value={formData.fullName}
+                                        onChange={(e) => handleFormChange("fullName", e.target.value)}
                                     />
-
-                                    {photos[slot.id] ? (
-                                        <>
-                                            <img
-                                                src={photos[slot.id].preview}
-                                                alt={slot.title}
-                                                className="upload-preview"
-                                            />
-                                            <div className="upload-overlay">
-                                                <button
-                                                    className="btn-replace"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        fileInputRefs.current[slot.id]?.click();
-                                                    }}
-                                                >
-                                                    Değiştir
-                                                </button>
-                                                <button
-                                                    className="btn-remove"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        removePhoto(slot.id);
-                                                    }}
-                                                >
-                                                    Kaldır
-                                                </button>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div className="upload-slot-icon">{slot.icon}</div>
-                                            <div className="upload-slot-title">{slot.title}</div>
-                                            <div className="upload-slot-desc">{slot.description}</div>
-                                            <span className={`upload-slot-badge ${slot.required ? "required" : "optional-badge"}`}>
-                                                {slot.required ? "Zorunlu" : "Opsiyonel"}
-                                            </span>
-                                            <button
-                                                className="btn btn-sm btn-secondary"
-                                                style={{ marginTop: 10, fontSize: '0.75rem' }}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setGuideModal(slot);
-                                                }}
-                                            >
-                                                📖 Nasıl Çekilir?
-                                            </button>
-                                        </>
-                                    )}
                                 </div>
-                            ))}
-                        </div>
-
-                        <div className="wizard-actions">
-                            <button className="btn btn-secondary" onClick={() => setStep(1)}>
-                                ← Geri
-                            </button>
-                            <button
-                                className="btn btn-primary"
-                                disabled={!requiredPhotosReady}
-                                onClick={() => setStep(3)}
-                            >
-                                Devam →
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* STEP 3: Review & Submit */}
-                {step === 3 && (
-                    <div className="card">
-                        <h2 style={{ marginBottom: 'var(--space-lg)', fontSize: '1.3rem' }}>
-                            📋 Gözden Geçir ve Analiz Başlat
-                        </h2>
-
-                        <div className="review-info-card">
-                            <div className="review-info-row">
-                                <span className="label">Ad Soyad</span>
-                                <span className="value">{formData.fullName}</span>
-                            </div>
-                            <div className="review-info-row">
-                                <span className="label">Yaş</span>
-                                <span className="value">{formData.age}</span>
-                            </div>
-                            <div className="review-info-row">
-                                <span className="label">Cinsiyet</span>
-                                <span className="value">{formData.gender}</span>
-                            </div>
-                            <div className="review-info-row">
-                                <span className="label">Şikayet / İstek</span>
-                                <span className="value">{formData.complaint}</span>
-                            </div>
-                            {formData.dentalHistory && (
-                                <div className="review-info-row">
-                                    <span className="label">Dental Geçmiş</span>
-                                    <span className="value">{formData.dentalHistory}</span>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Yaş <span className="required">*</span>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        className="form-input"
+                                        placeholder="Yaşınız"
+                                        min="1"
+                                        max="120"
+                                        value={formData.age}
+                                        onChange={(e) => handleFormChange("age", e.target.value)}
+                                    />
                                 </div>
-                            )}
-                            {formData.allergies && (
-                                <div className="review-info-row">
-                                    <span className="label">Alerjiler</span>
-                                    <span className="value">{formData.allergies}</span>
-                                </div>
-                            )}
-                        </div>
+                            </div>
 
-                        <h3 style={{ marginBottom: 'var(--space-md)', fontSize: '1rem' }}>
-                            Yüklenen Fotoğraflar ({Object.keys(photos).length})
-                        </h3>
-                        <div className="review-grid">
-                            {PHOTO_SLOTS.filter((s) => photos[s.id]).map((slot) => (
-                                <div key={slot.id}>
-                                    <div className="review-photo">
-                                        <img src={photos[slot.id].preview} alt={slot.title} />
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Cinsiyet <span className="required">*</span>
+                                    </label>
+                                    <select
+                                        className="form-select"
+                                        value={formData.gender}
+                                        onChange={(e) => handleFormChange("gender", e.target.value)}
+                                    >
+                                        <option value="">Seçiniz</option>
+                                        <option value="erkek">Erkek</option>
+                                        <option value="kadın">Kadın</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Alerjiler</label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Bilinen alerjileriniz (varsa)"
+                                        value={formData.allergies}
+                                        onChange={(e) => handleFormChange("allergies", e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">
+                                    Şikayet / İstek <span className="required">*</span>
+                                </label>
+                                <textarea
+                                    className="form-textarea"
+                                    placeholder="Örn: Ön dişlerimde estetik görünüm istiyorum, arka dişlerimde çürük var..."
+                                    value={formData.complaint}
+                                    onChange={(e) => handleFormChange("complaint", e.target.value)}
+                                    rows={3}
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Dental Geçmiş</label>
+                                <textarea
+                                    className="form-textarea"
+                                    placeholder="Daha önce yapılan tedaviler, bilinen dental sorunlar..."
+                                    value={formData.dentalHistory}
+                                    onChange={(e) => handleFormChange("dentalHistory", e.target.value)}
+                                    rows={2}
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Mevcut Tedaviler</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="Şu an devam eden tedaviler (varsa)"
+                                    value={formData.existingTreatments}
+                                    onChange={(e) => handleFormChange("existingTreatments", e.target.value)}
+                                />
+                            </div>
+
+                            <div className="wizard-actions">
+                                <div></div>
+                                <button
+                                    className="btn btn-primary"
+                                    disabled={!formValid}
+                                    onClick={() => goToStep(2)}
+                                >
+                                    Devam →
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* STEP 2: Treatment Expectations */}
+                <div className={`wizard-step ${step === 2 ? "active" : ""}`}>
+                    {step === 2 && (
+                        <div className="card animate-in">
+                            <h2 className="card-title">
+                                <span className="card-title-icon">🎯</span>
+                                Tedavi Beklentileri
+                            </h2>
+                            <p className="card-subtitle">
+                                Hangi tedavilerle ilgileniyorsunuz? Birden fazla seçenek işaretleyebilirsiniz.
+                                AI analizi seçimlerinize göre özelleştirilecektir.
+                            </p>
+
+                            <div className="expectations-grid">
+                                {TREATMENT_EXPECTATIONS.map((exp) => (
+                                    <button
+                                        key={exp.id}
+                                        className={`expectation-chip ${expectations.includes(exp.id) ? "selected" : ""}`}
+                                        onClick={() => toggleExpectation(exp.id)}
+                                    >
+                                        <span className="expectation-icon">{exp.icon}</span>
+                                        <div className="expectation-info">
+                                            <span className="expectation-label">{exp.label}</span>
+                                            <span className="expectation-desc">{exp.desc}</span>
+                                        </div>
+                                        <span className="expectation-check">
+                                            {expectations.includes(exp.id) ? "✓" : ""}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+
+                            {expectations.length > 0 && (
+                                <div className="expectations-summary">
+                                    <span className="expectations-count">{expectations.length} tedavi seçildi</span>
+                                    <div className="expectations-tags">
+                                        {expectations.map((id) => {
+                                            const exp = TREATMENT_EXPECTATIONS.find((e) => e.id === id);
+                                            return (
+                                                <span key={id} className="expectation-tag">
+                                                    {exp?.icon} {exp?.label}
+                                                    <button className="tag-remove" onClick={() => toggleExpectation(id)}>✕</button>
+                                                </span>
+                                            );
+                                        })}
                                     </div>
-                                    <div className="review-photo-label">{slot.title}</div>
                                 </div>
-                            ))}
-                        </div>
+                            )}
 
-                        <div className="wizard-actions">
-                            <button className="btn btn-secondary" onClick={() => setStep(2)}>
-                                ← Geri
-                            </button>
-                            <button className="btn btn-accent btn-lg" onClick={handleSubmit}>
-                                🤖 AI Analiz Başlat
-                            </button>
+                            <div className="wizard-actions">
+                                <button className="btn btn-secondary" onClick={() => goToStep(1)}>
+                                    ← Geri
+                                </button>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={() => goToStep(3)}
+                                >
+                                    {expectations.length > 0 ? "Devam →" : "Atla →"}
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
+
+                {/* STEP 3: Photo Upload */}
+                <div className={`wizard-step ${step === 3 ? "active" : ""}`}>
+                    {step === 3 && (
+                        <div className="card animate-in">
+                            <h2 className="card-title">
+                                <span className="card-title-icon">📸</span>
+                                Fotoğraf Yükleme
+                            </h2>
+
+                            <div className="upload-guide">
+                                <h3>💡 İpuçları</h3>
+                                <ul>
+                                    <li>Net ve iyi aydınlatılmış fotoğraflar daha doğru analiz sağlar</li>
+                                    <li>Ağız içi ayna kullanarak alt/üst çene fotoğrafları çekin</li>
+                                    <li>Fotoğraflar JPEG veya PNG formatında, max 20MB olmalıdır</li>
+                                    <li>Panoramik röntgen yüklenmesi analiz kalitesini artırır</li>
+                                </ul>
+                            </div>
+
+                            <div className="upload-grid">
+                                {PHOTO_SLOTS.map((slot) => (
+                                    <div
+                                        key={slot.id}
+                                        className={`upload-slot ${photos[slot.id] ? "has-image" : ""} ${!slot.required ? "optional" : ""}`}
+                                        onClick={() => {
+                                            if (!photos[slot.id]) {
+                                                fileInputRefs.current[slot.id]?.click();
+                                            }
+                                        }}
+                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add("drag-over"); }}
+                                        onDragLeave={(e) => { e.currentTarget.classList.remove("drag-over"); }}
+                                        onDrop={(e) => { e.currentTarget.classList.remove("drag-over"); handlePhotoDrop(slot.id, e); }}
+                                    >
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            ref={(el) => (fileInputRefs.current[slot.id] = el)}
+                                            onChange={(e) => handlePhotoDrop(slot.id, e)}
+                                        />
+
+                                        {photos[slot.id] ? (
+                                            <>
+                                                <img
+                                                    src={photos[slot.id].preview}
+                                                    alt={slot.title}
+                                                    className="upload-preview"
+                                                />
+                                                <div className="upload-overlay">
+                                                    <button
+                                                        className="btn-replace"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            fileInputRefs.current[slot.id]?.click();
+                                                        }}
+                                                    >
+                                                        Değiştir
+                                                    </button>
+                                                    <button
+                                                        className="btn-remove"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            removePhoto(slot.id);
+                                                        }}
+                                                    >
+                                                        Kaldır
+                                                    </button>
+                                                </div>
+                                                <div className="upload-success-badge">✓</div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="upload-slot-icon">{slot.icon}</div>
+                                                <div className="upload-slot-title">{slot.title}</div>
+                                                <div className="upload-slot-desc">{slot.description}</div>
+                                                <span className={`upload-slot-badge ${slot.required ? "required" : "optional-badge"}`}>
+                                                    {slot.required ? "Zorunlu" : "Opsiyonel"}
+                                                </span>
+                                                <button
+                                                    className="btn btn-sm btn-secondary"
+                                                    style={{ marginTop: 10, fontSize: '0.75rem' }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setGuideModal(slot);
+                                                    }}
+                                                >
+                                                    📖 Nasıl Çekilir?
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="wizard-actions">
+                                <button className="btn btn-secondary" onClick={() => goToStep(2)}>
+                                    ← Geri
+                                </button>
+                                <button
+                                    className="btn btn-primary"
+                                    disabled={!requiredPhotosReady}
+                                    onClick={() => goToStep(4)}
+                                >
+                                    Devam →
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* STEP 4: Review & Submit */}
+                <div className={`wizard-step ${step === 4 ? "active" : ""}`}>
+                    {step === 4 && (
+                        <div className="card animate-in">
+                            <h2 className="card-title">
+                                <span className="card-title-icon">📋</span>
+                                Gözden Geçir ve Analiz Başlat
+                            </h2>
+
+                            <div className="review-info-card">
+                                <div className="review-info-row">
+                                    <span className="label">Ad Soyad</span>
+                                    <span className="value">{formData.fullName}</span>
+                                </div>
+                                <div className="review-info-row">
+                                    <span className="label">Yaş</span>
+                                    <span className="value">{formData.age}</span>
+                                </div>
+                                <div className="review-info-row">
+                                    <span className="label">Cinsiyet</span>
+                                    <span className="value">{formData.gender}</span>
+                                </div>
+                                <div className="review-info-row">
+                                    <span className="label">Şikayet / İstek</span>
+                                    <span className="value">{formData.complaint}</span>
+                                </div>
+                                {formData.dentalHistory && (
+                                    <div className="review-info-row">
+                                        <span className="label">Dental Geçmiş</span>
+                                        <span className="value">{formData.dentalHistory}</span>
+                                    </div>
+                                )}
+                                {formData.allergies && (
+                                    <div className="review-info-row">
+                                        <span className="label">Alerjiler</span>
+                                        <span className="value">{formData.allergies}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {expectations.length > 0 && (
+                                <>
+                                    <h3 className="review-section-title">🎯 Tedavi Beklentileri</h3>
+                                    <div className="review-expectations">
+                                        {expectations.map((id) => {
+                                            const exp = TREATMENT_EXPECTATIONS.find((e) => e.id === id);
+                                            return (
+                                                <span key={id} className="review-exp-tag">
+                                                    {exp?.icon} {exp?.label}
+                                                </span>
+                                            );
+                                        })}
+                                    </div>
+                                </>
+                            )}
+
+                            <h3 className="review-section-title">
+                                📸 Yüklenen Fotoğraflar ({Object.keys(photos).length})
+                            </h3>
+                            <div className="review-grid">
+                                {PHOTO_SLOTS.filter((s) => photos[s.id]).map((slot) => (
+                                    <div key={slot.id}>
+                                        <div className="review-photo">
+                                            <img src={photos[slot.id].preview} alt={slot.title} />
+                                        </div>
+                                        <div className="review-photo-label">{slot.title}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="wizard-actions">
+                                <button className="btn btn-secondary" onClick={() => goToStep(3)}>
+                                    ← Geri
+                                </button>
+                                <button className="btn btn-accent btn-lg" onClick={handleSubmit}>
+                                    🤖 AI Analiz Başlat
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Guide Modal */}

@@ -11,6 +11,8 @@ export default defineSchema({
         dentalHistory: v.optional(v.string()),
         allergies: v.optional(v.string()),
         existingTreatments: v.optional(v.string()),
+        // Patient expectations
+        expectations: v.optional(v.array(v.string())),
         // Analysis metadata
         photoCount: v.number(),
         photoTypes: v.array(v.string()),

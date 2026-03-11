@@ -11,6 +11,7 @@ export const create = mutation({
         dentalHistory: v.optional(v.string()),
         allergies: v.optional(v.string()),
         existingTreatments: v.optional(v.string()),
+        expectations: v.optional(v.array(v.string())),
         photoCount: v.number(),
         photoTypes: v.array(v.string()),
         analysisResult: v.string(),
