@@ -65,8 +65,28 @@ export default function AnnotatedPhoto({ src, markers = [], title = "" }) {
             const RADIUS = Math.max(12, w * 0.022);
             const FONT_SIZE = Math.max(10, w * 0.018);
             const LABEL_FONT = Math.max(9, w * 0.015);
+            const LABEL_H = LABEL_FONT + 10;
 
-            markers.forEach((m, idx) => {
+            // Collision avoidance: track occupied label positions
+            const occupiedRight = []; // [{y, h}]
+            const occupiedLeft = [];
+
+            function findFreeY(target, occupied) {
+                let y = target;
+                let tries = 0;
+                while (tries < 20) {
+                    const collision = occupied.some((o) => Math.abs(o.y - y) < LABEL_H);
+                    if (!collision) break;
+                    y += LABEL_H;
+                    tries++;
+                }
+                // Clamp to canvas
+                y = Math.max(LABEL_H, Math.min(h - LABEL_H, y));
+                occupied.push({ y, h: LABEL_H });
+                return y;
+            }
+
+            markers.forEach((m) => {
                 const color = COLORS[m.tedavi_tipi] || DEFAULT_COLOR;
                 const cx = (m.x / 100) * w;
                 const cy = (m.y / 100) * h;
@@ -103,13 +123,10 @@ export default function AnnotatedPhoto({ src, markers = [], title = "" }) {
 
                 // Label with leader line
                 if (m.etiket) {
-                    // Calculate label position (offset from circle)
                     const labelOffset = RADIUS + 6;
-                    // Alternate label side based on x position
-                    const labelOnRight = cx < w * 0.6;
+                    const labelOnRight = cx < w * 0.5;
                     const lx = labelOnRight ? cx + labelOffset : cx - labelOffset;
-                    // Stack labels vertically to avoid overlap
-                    const ly = cy - 4 + (idx % 3) * (LABEL_FONT + 6);
+                    const ly = findFreeY(cy, labelOnRight ? occupiedRight : occupiedLeft);
 
                     // Leader line
                     ctx.beginPath();

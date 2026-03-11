@@ -48,9 +48,17 @@ HASTA: ${patientInfo.fullName}, ${patientInfo.age}y, ${patientInfo.gender}
 ${patientInfo.dentalHistory ? `GEÇMİŞ: ${patientInfo.dentalHistory}` : ""}${patientInfo.existingTreatments ? ` TEDAVİLER: ${patientInfo.existingTreatments}` : ""}${buildExpectationsPrompt(expectations)}
 
 FOTOĞRAFLAR: ${images.map((img, i) => `[${i + 1}:${img.title}]`).join(" ")}
-AYNA KURALI: Frontal/yarım açık→hastanın sağı=senin solun. Oklüzal→TERS! Solda gördüğün=hastanın sağı.
 
-FOTOĞRAF İŞARETLEME: Her fotoğrafta tedavi gereken her dişi x,y koordinatlarıyla(%) işaretle.
+AYNA KURALI VE KOORDİNAT REHBERİ:
+Frontal/yarım açık (hastanın sağı=senin solun):
+  Üst sıra y=28-42: 18→x=8, 17→x=14, 16→x=20, 15→x=26, 14→x=32, 13→x=38, 12→x=42, 11→x=47, 21→x=53, 22→x=58, 23→x=62, 24→x=68, 25→x=74, 26→x=80, 27→x=86, 28→x=92
+  Alt sıra y=50-62: 48→x=8, 47→x=14, 46→x=20, 45→x=26, 44→x=32, 43→x=38, 42→x=43, 41→x=48, 31→x=52, 32→x=57, 33→x=62, 34→x=68, 35→x=74, 36→x=80, 37→x=86, 38→x=92
+Oklüzal üst (ayna=TERS, solda gördüğün=hastanın sağı):
+  Anterior y=75-85 orta, posterior y=15-35 kenarlar, sağ x=10-40, sol x=60-90
+Oklüzal alt (ayna=TERS):
+  Anterior y=15-25 orta, posterior y=65-85 kenarlar, sağ x=10-40, sol x=60-90
+
+FOTOĞRAF İŞARETLEME: Tedavi gereken her dişi kendi x,y koordinatıyla işaretle.
 Tedavi tipleri: kron(kırmızı), veneer(yeşil), implant(mavi), kanal(turuncu), curuk(sarı), cerrahi(mor)
 
 SADECE JSON döndür:

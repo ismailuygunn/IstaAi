@@ -140,6 +140,9 @@ export default function GecmisPage() {
                                     return (
                                         <div key={item._id} className="history-card" onClick={() => router.push(`/rapor/${item._id}`)}>
                                             <div className="history-card-main">
+                                                {item.thumbnailUrl && (
+                                                    <img src={item.thumbnailUrl} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} />
+                                                )}
                                                 <div className="history-card-info">
                                                     <div className="history-card-top">
                                                         <h3>{item.patientName}</h3>
@@ -180,6 +183,9 @@ export default function GecmisPage() {
                                     const level = getSeverityFromResult(item.analysisResult);
                                     return (
                                         <div key={item._id} className="history-grid-card" onClick={() => router.push(`/rapor/${item._id}`)}>
+                                            {item.thumbnailUrl && (
+                                                <img src={item.thumbnailUrl} alt="" style={{ width: "100%", height: 100, objectFit: "cover", borderRadius: "8px 8px 0 0", marginBottom: 8 }} />
+                                            )}
                                             <div className="history-grid-top">
                                                 <SeverityBadge level={level} />
                                                 <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>

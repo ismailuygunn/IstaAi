@@ -39,11 +39,25 @@ export const create = mutation({
 export const getAll = query({
     args: {},
     handler: async (ctx) => {
-        return await ctx.db
+        const items = await ctx.db
             .query("analyses")
             .withIndex("by_creation")
             .order("desc")
             .collect();
+
+        // Resolve first photo URL for thumbnails
+        const results = await Promise.all(
+            items.map(async (item) => {
+                let thumbnailUrl = null;
+                if (item.photoStorageIds?.length) {
+                    thumbnailUrl = await ctx.storage.getUrl(item.photoStorageIds[0].storageId);
+                } else if (item.photos?.length) {
+                    thumbnailUrl = item.photos[0].base64;
+                }
+                return { ...item, thumbnailUrl };
+            })
+        );
+        return results;
     },
 });
 
@@ -54,7 +68,7 @@ export const getById = query({
         const analysis = await ctx.db.get(args.id);
         if (!analysis) return null;
 
-        // Resolve storage IDs to URLs
+        // Resolve storage IDs to URLs (new system)
         if (analysis.photoStorageIds?.length) {
             const photos = await Promise.all(
                 analysis.photoStorageIds.map(async (p) => {
@@ -62,10 +76,20 @@ export const getById = query({
                     return { id: p.id, title: p.title, url };
                 })
             );
-            return { ...analysis, photos };
+            return { ...analysis, resolvedPhotos: photos };
         }
 
-        return analysis;
+        // Fallback: old inline base64 photos
+        if (analysis.photos?.length) {
+            const photos = analysis.photos.map((p) => ({
+                id: p.id,
+                title: p.title,
+                url: p.base64,
+            }));
+            return { ...analysis, resolvedPhotos: photos };
+        }
+
+        return { ...analysis, resolvedPhotos: [] };
     },
 });
 

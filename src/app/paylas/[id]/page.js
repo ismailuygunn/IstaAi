@@ -75,11 +75,35 @@ export default function PaylasPage() {
                     )}
                 </div>
 
+                {/* Fotoğraflar */}
+                {record.resolvedPhotos?.length > 0 && (
+                    <div className="share-section">
+                        <h3>📸 Analiz Edilen Fotoğraflar</h3>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+                            {record.resolvedPhotos.map((photo, idx) => (
+                                <div key={idx} style={{ position: "relative" }}>
+                                    <img
+                                        src={photo.url}
+                                        alt={photo.title}
+                                        style={{ width: "100%", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)" }}
+                                    />
+                                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 4, textAlign: "center" }}>
+                                        {photo.title}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* Genel Değerlendirme */}
                 {a.genel_degerlendirme && (
                     <div className="share-section">
                         <h3>🔍 Genel Değerlendirme <SeverityBadge level={a.genel_degerlendirme.seviye} /></h3>
                         <p>{a.genel_degerlendirme.detay || a.genel_degerlendirme.ozet}</p>
+                        {a.genel_degerlendirme.okluzyon && (
+                            <p style={{ marginTop: 6 }}><strong>Oklüzyon:</strong> {a.genel_degerlendirme.okluzyon}</p>
+                        )}
                     </div>
                 )}
 
@@ -103,6 +127,39 @@ export default function PaylasPage() {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                )}
+
+                {/* Önerilen Plan */}
+                {a.onerilen_plan && (
+                    <div className="share-section" style={{ background: "rgba(234,179,8,0.1)", border: "1px solid rgba(234,179,8,0.3)", borderRadius: 12, padding: 20 }}>
+                        <h3>⭐ {a.onerilen_plan.baslik}</h3>
+                        <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+                            {a.onerilen_plan.toplam_dis_sayisi && (
+                                <div><strong>Toplam:</strong> {a.onerilen_plan.toplam_dis_sayisi} diş işlemi</div>
+                            )}
+                            {a.onerilen_plan.dis_araliklari && (
+                                <div><strong>Aralıklar:</strong> {a.onerilen_plan.dis_araliklari}</div>
+                            )}
+                            {a.onerilen_plan.full_kaplama?.anterior && (
+                                <div>👑 <strong>Anterior:</strong> {a.onerilen_plan.full_kaplama.anterior}</div>
+                            )}
+                            {a.onerilen_plan.full_kaplama?.posterior && (
+                                <div>👑 <strong>Posterior:</strong> {a.onerilen_plan.full_kaplama.posterior}</div>
+                            )}
+                            {a.onerilen_plan.kanal_tedavisi && (
+                                <div>🔶 <strong>Kanal:</strong> {a.onerilen_plan.kanal_tedavisi}</div>
+                            )}
+                            {a.onerilen_plan.implant && (
+                                <div>🔩 <strong>İmplant:</strong> {a.onerilen_plan.implant}</div>
+                            )}
+                            {a.onerilen_plan.cerrahi && (
+                                <div>🟣 <strong>Cerrahi:</strong> {a.onerilen_plan.cerrahi}</div>
+                            )}
+                            {a.onerilen_plan.tahmini_seans && (
+                                <div style={{ fontWeight: 600, marginTop: 4 }}>📋 Tahmini {a.onerilen_plan.tahmini_seans} seans</div>
+                            )}
                         </div>
                     </div>
                 )}

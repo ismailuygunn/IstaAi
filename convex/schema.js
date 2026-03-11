@@ -13,11 +13,17 @@ export default defineSchema({
         expectations: v.optional(v.array(v.string())),
         photoCount: v.number(),
         photoTypes: v.array(v.string()),
-        // Photos stored as Convex file storage IDs (no 1MB limit)
+        // NEW: Photos stored as Convex file storage IDs
         photoStorageIds: v.optional(v.array(v.object({
             id: v.string(),
             title: v.string(),
             storageId: v.id("_storage"),
+        }))),
+        // OLD: Backward compat — eski inline base64 photos
+        photos: v.optional(v.array(v.object({
+            id: v.string(),
+            title: v.string(),
+            base64: v.string(),
         }))),
         analysisResult: v.string(),
         createdAt: v.number(),

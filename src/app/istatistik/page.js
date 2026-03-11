@@ -174,6 +174,53 @@ export default function IstatistikPage() {
                             </div>
                         )}
 
+                        {/* AI Treatment Distribution */}
+                        {(() => {
+                            const treatCounts = { crown: 0, veneer: 0, implant: 0, canal: 0, bridge: 0, missing: 0 };
+                            const treatLabels = {
+                                crown: "👑 Kron",
+                                veneer: "✨ Veneer",
+                                implant: "🔩 İmplant",
+                                canal: "🔶 Kanal",
+                                bridge: "🌉 Köprü",
+                                missing: "❌ Eksik Diş",
+                            };
+                            const treatColors = {
+                                crown: "#EF4444",
+                                veneer: "#10B981",
+                                implant: "#3B82F6",
+                                canal: "#F97316",
+                                bridge: "#8B5CF6",
+                                missing: "#6B7280",
+                            };
+                            analyses.forEach((a) => {
+                                try {
+                                    const data = JSON.parse(a.analysisResult);
+                                    (data.dis_dis_analiz || []).forEach((d) => {
+                                        const cat = (d.kategori || "").toLowerCase();
+                                        if (treatCounts[cat] !== undefined) treatCounts[cat]++;
+                                    });
+                                } catch {}
+                            });
+                            const sorted = Object.entries(treatCounts).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]);
+                            const maxTreat = sorted.length > 0 ? sorted[0][1] : 1;
+                            if (sorted.length === 0) return null;
+                            return (
+                                <div className="card">
+                                    <h3 className="stats-section-title">🦷 AI Tedavi Önerisi Dağılımı</h3>
+                                    {sorted.map(([key, count]) => (
+                                        <BarItem
+                                            key={key}
+                                            label={treatLabels[key] || key}
+                                            count={count}
+                                            max={maxTreat}
+                                            color={treatColors[key] || "var(--primary)"}
+                                        />
+                                    ))}
+                                </div>
+                            );
+                        })()}
+
                         {/* Monthly Trend */}
                         <div className="card">
                             <h3 className="stats-section-title">📈 Aylık Analiz Trendi</h3>

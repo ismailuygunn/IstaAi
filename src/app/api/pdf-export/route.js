@@ -190,6 +190,49 @@ export async function POST(request) {
             y = doc.lastAutoTable.finalY + 6;
         }
 
+        // Önerilen Plan
+        checkPage();
+        if (analysis.onerilen_plan) {
+            const op = analysis.onerilen_plan;
+            doc.setFillColor(234, 179, 8);
+            doc.roundedRect(margin, y, pageWidth - margin * 2, 8, 2, 2, "F");
+            doc.setTextColor(30, 41, 59);
+            doc.setFontSize(11);
+            doc.text(tr(op.baslik || "Onerilen Plan"), margin + 4, y + 6);
+            y += 12;
+
+            doc.setTextColor(30, 41, 59);
+            doc.setFontSize(9);
+
+            if (op.toplam_dis_sayisi) {
+                doc.setFont(undefined, "bold");
+                doc.text(`Toplam ${op.toplam_dis_sayisi} dis islemi`, margin + 2, y);
+                doc.setFont(undefined, "normal");
+                y += 5;
+            }
+            if (op.dis_araliklari) {
+                doc.text(`Araliklar: ${tr(op.dis_araliklari)}`, margin + 2, y); y += 5;
+            }
+            if (op.full_kaplama) {
+                if (op.full_kaplama.anterior) { doc.text(`  Anterior: ${tr(op.full_kaplama.anterior)}`, margin + 4, y); y += 4; }
+                if (op.full_kaplama.posterior) { doc.text(`  Posterior: ${tr(op.full_kaplama.posterior)}`, margin + 4, y); y += 4; }
+            }
+            if (op.kanal_tedavisi) { doc.text(`Kanal: ${tr(op.kanal_tedavisi)}`, margin + 2, y); y += 5; }
+            if (op.implant) { doc.text(`Implant: ${tr(op.implant)}`, margin + 2, y); y += 5; }
+            if (op.cerrahi) { doc.text(`Cerrahi: ${tr(op.cerrahi)}`, margin + 2, y); y += 5; }
+            if (op.tahmini_seans) {
+                doc.setFont(undefined, "bold");
+                doc.text(`Tahmini ${op.tahmini_seans} seans`, margin + 2, y);
+                doc.setFont(undefined, "normal");
+                y += 5;
+            }
+            if (op.notlar) {
+                const nl = doc.splitTextToSize(`Not: ${tr(op.notlar)}`, pageWidth - margin * 2 - 5);
+                doc.text(nl, margin + 2, y); y += nl.length * 4 + 2;
+            }
+            y += 4;
+        }
+
         // Alternative Plans
         checkPage();
         if (analysis.alternatif_planlar?.length) {

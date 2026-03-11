@@ -171,6 +171,40 @@ export default function KarsilastirPage() {
                                         <p style={{ marginTop: 8 }}>📋 Toplam {rightData.tedavi_plani?.toplam_tahmini_seans || "?"} seans</p>
                                     </div>
                                 </div>
+
+                                {/* Önerilen Plan karşılaştırma */}
+                                {(leftData.onerilen_plan || rightData.onerilen_plan) && (
+                                    <>
+                                        <div className="compare-col">
+                                            <div className="compare-section">
+                                                <h4>⭐ Önerilen Plan</h4>
+                                                {leftData.onerilen_plan ? (
+                                                    <>
+                                                        <p><strong>{leftData.onerilen_plan.toplam_dis_sayisi || "?"} diş</strong> — {leftData.onerilen_plan.dis_araliklari}</p>
+                                                        {leftData.onerilen_plan.kanal_tedavisi && <p>🔶 Kanal: {leftData.onerilen_plan.kanal_tedavisi}</p>}
+                                                        {leftData.onerilen_plan.implant && <p>🔩 İmplant: {leftData.onerilen_plan.implant}</p>}
+                                                        {leftData.onerilen_plan.cerrahi && <p>🟣 Cerrahi: {leftData.onerilen_plan.cerrahi}</p>}
+                                                        <p style={{ fontWeight: 600, marginTop: 4 }}>📋 {leftData.onerilen_plan.tahmini_seans} seans</p>
+                                                    </>
+                                                ) : <p style={{ color: "var(--text-muted)" }}>Plan yok</p>}
+                                            </div>
+                                        </div>
+                                        <div className="compare-col">
+                                            <div className="compare-section">
+                                                <h4>⭐ Önerilen Plan</h4>
+                                                {rightData.onerilen_plan ? (
+                                                    <>
+                                                        <p><strong>{rightData.onerilen_plan.toplam_dis_sayisi || "?"} diş</strong> — {rightData.onerilen_plan.dis_araliklari}</p>
+                                                        {rightData.onerilen_plan.kanal_tedavisi && <p>🔶 Kanal: {rightData.onerilen_plan.kanal_tedavisi}</p>}
+                                                        {rightData.onerilen_plan.implant && <p>🔩 İmplant: {rightData.onerilen_plan.implant}</p>}
+                                                        {rightData.onerilen_plan.cerrahi && <p>🟣 Cerrahi: {rightData.onerilen_plan.cerrahi}</p>}
+                                                        <p style={{ fontWeight: 600, marginTop: 4 }}>📋 {rightData.onerilen_plan.tahmini_seans} seans</p>
+                                                    </>
+                                                ) : <p style={{ color: "var(--text-muted)" }}>Plan yok</p>}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
                     </>

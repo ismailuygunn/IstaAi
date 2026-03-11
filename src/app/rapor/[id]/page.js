@@ -179,7 +179,7 @@ export default function RaporPage() {
                 {/* Header */}
                 <div className="report-header">
                     <h1>🦷 Dental Analiz Raporu</h1>
-                    <p style={{ color: "var(--text-secondary)" }}>İSTADENTAL AI — Gemini 2.5 Pro</p>
+                    <p style={{ color: "var(--text-secondary)" }}>İSTADENTAL AI — Gemini 3.1 Pro</p>
                     <div className="report-patient-info">
                         <div className="report-patient-tag"><span className="label">Hasta:</span> {record.patientName}</div>
                         <div className="report-patient-tag"><span className="label">Yaş:</span> {record.patientAge}</div>
@@ -197,19 +197,19 @@ export default function RaporPage() {
                 </div>
 
                 {/* Fotoğraflar + AI İşaretlemeleri */}
-                {record.photos?.length > 0 && (
-                    <CollapsibleSection icon="📸" title="Fotoğraflar ve AI Bulguları" subtitle={`${record.photos.length} fotoğraf analiz edildi`}>
+                {record.resolvedPhotos?.length > 0 && (
+                    <CollapsibleSection icon="📸" title="Fotoğraflar ve AI Bulguları" subtitle={`${record.resolvedPhotos.length} fotoğraf analiz edildi`}>
                         <div className="annotated-photos-grid">
-                            {record.photos.map((photo, idx) => (
+                            {record.resolvedPhotos.map((photo, idx) => (
                                 <AnnotatedPhoto
                                     key={idx}
-                                    src={photo.url || photo.base64}
+                                    src={photo.url}
                                     title={photo.title}
                                     markers={getMarkers(a.foto_bulgular, idx)}
                                 />
                             ))}
                         </div>
-                        <NotesPanel analysisId={params.id} section="fotograflar" />
+                        <NotesPanel analysisId={record._id} section="fotograflar" />
                     </CollapsibleSection>
                 )}
 
@@ -221,7 +221,7 @@ export default function RaporPage() {
                             {a.genel_degerlendirme.okluzyon && <p style={{ marginTop: 8 }}><strong>Oklüzyon:</strong> {a.genel_degerlendirme.okluzyon}</p>}
                         </div>
                         <ToothMap disList={a.dis_dis_analiz} />
-                        <NotesPanel analysisId={params.id} section="genel" />
+                        <NotesPanel analysisId={record._id} section="genel" />
                     </CollapsibleSection>
                 )}
 
@@ -243,7 +243,7 @@ export default function RaporPage() {
                                 </tbody>
                             </table>
                         </div>
-                        <NotesPanel analysisId={params.id} section="disler" />
+                        <NotesPanel analysisId={record._id} section="disler" />
                     </CollapsibleSection>
                 )}
 
@@ -270,7 +270,7 @@ export default function RaporPage() {
                                 </div>
                             )}
                         </div>
-                        <NotesPanel analysisId={params.id} section="protetik" />
+                        <NotesPanel analysisId={record._id} section="protetik" />
                     </CollapsibleSection>
                 )}
 
@@ -344,7 +344,7 @@ export default function RaporPage() {
                         {a.onerilen_plan.notlar && (
                             <div className="rp-notes">📋 {a.onerilen_plan.notlar}</div>
                         )}
-                        <NotesPanel analysisId={params.id} section="onerilen_plan" />
+                        <NotesPanel analysisId={record._id} section="onerilen_plan" />
                     </div>
                 )}
 
@@ -361,7 +361,7 @@ export default function RaporPage() {
                                 ))}
                             </div>
                         </div>
-                        <NotesPanel analysisId={params.id} section="tedavi" />
+                        <NotesPanel analysisId={record._id} section="tedavi" />
                     </CollapsibleSection>
                 )}
 
