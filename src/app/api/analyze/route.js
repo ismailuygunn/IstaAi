@@ -1,23 +1,22 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Vercel: extend serverless function timeout to 60s
 export const maxDuration = 60;
 
 const EXPECTATION_LABELS = {
-    full_crown: "Full Kaplama Kron (Zirkonya, Metal Seramik, E-max)",
+    full_crown: "Full Kaplama Kron",
     monolithic: "Monolitik Kron",
     veneer: "Laminate Veneer",
     implant: "İmplant",
     bridge: "Köprü Protez",
     composite: "Kompozit Bonding",
     whitening: "Diş Beyazlatma",
-    orthodontic: "Ortodontik Tedavi",
+    orthodontic: "Ortodonti",
 };
 
 function buildExpectationsPrompt(expectations) {
     if (!expectations || expectations.length === 0) return "";
     const labels = expectations.map((e) => EXPECTATION_LABELS[e] || e).join(", ");
-    return `\nHASTA TEDAVİ BEKLENTİLERİ: ${labels}\nBu tedavi beklentilerine göre DETAYLI analiz yap.\n`;
+    return `\nBEKLENTİLER: ${labels}`;
 }
 
 export async function POST(request) {
@@ -42,179 +41,20 @@ export async function POST(request) {
             return { inlineData: { mimeType: matches[1], data: matches[2] } };
         }).filter(Boolean);
 
-        const expectationsPrompt = buildExpectationsPrompt(expectations);
+        const prompt = `Protetik diş hekimi + estetik uzmanısın. Estetik klinik için full kaplama öncelikli analiz yap.
 
-        const prompt = `Sen çok deneyimli bir protetik diş hekimi ve estetik uzmanısın. ESTETİK BİR DİŞ KLİNİĞİ için çalışıyorsun. Full kaplama ve estetik restorasyon ÖNCELIKLI yaklaşım sergileyeceksin.
-
-HASTA: ${patientInfo.fullName}, ${patientInfo.age} yaş, ${patientInfo.gender}
+HASTA: ${patientInfo.fullName}, ${patientInfo.age}y, ${patientInfo.gender}
 ŞİKAYET: ${patientInfo.complaint}
-${patientInfo.dentalHistory ? `DENTAL GEÇMİŞ: ${patientInfo.dentalHistory}` : ""}
-${patientInfo.allergies ? `ALERJİLER: ${patientInfo.allergies}` : ""}
-${patientInfo.existingTreatments ? `MEVCUT TEDAVİLER: ${patientInfo.existingTreatments}` : ""}
-${expectationsPrompt}
+${patientInfo.dentalHistory ? `GEÇMİŞ: ${patientInfo.dentalHistory}` : ""}${patientInfo.existingTreatments ? ` TEDAVİLER: ${patientInfo.existingTreatments}` : ""}${buildExpectationsPrompt(expectations)}
 
-═══════════════════════════════════════════
-FOTOĞRAF OKUMA KURALLARI (KRİTİK!)
-═══════════════════════════════════════════
-1. FRONTAL (Ağız Kapalı): Ayna kuralı — hastanın SAĞI senin SOLUN.
-2. YARIM AÇIK: Kapanış sınıfı, overjet, overbite değerlendirmesi.
-3. ALT ÇENE OKLÜZAL: Ayna ile çekilmiş, TERStir! Solda = hastanın SAĞINDIR.
-4. ÜST ÇENE OKLÜZAL: Ayna ile çekilmiş, TERStir! Solda = hastanın SAĞINDIR.
-${images.length > 4 ? "5. PANORAMİK: Radyolojik konvansiyon." : ""}
+FOTOĞRAFLAR: ${images.map((img, i) => `[${i + 1}:${img.title}]`).join(" ")}
+AYNA KURALI: Frontal/yarım açık→hastanın sağı=senin solun. Oklüzal→TERS! Solda gördüğün=hastanın sağı.
 
-Fotoğraflar: ${images.map((img, i) => `[Fotoğraf ${i + 1}: ${img.title}]`).join(", ")}
-
-═══════════════════════════════════════════
-FOTOĞRAF İŞARETLEME TALİMATLARI (ÇOK ÖNEMLİ!)
-═══════════════════════════════════════════
-Her fotoğrafta gördüğün bulguları "foto_bulgular" altında listele.
-Her bulgu için fotoğraf üzerindeki YÜZDE BAZLI KOORDİNATLARI ver:
-- x: Sol kenardan yüzde (0=en sol, 100=en sağ)
-- y: Üst kenardan yüzde (0=en üst, 100=en alt)
-- Dişin fotoğraftaki GERÇEK konumunu tahmin et
-- Frontal fotoğrafta: Üst anterior dişler y=25-40, alt anterior y=45-60, üst premolar y=25-35 kenarlar, alt premolar y=55-65 kenarlar
-- Oklüzal fotoğrafta: Dişler daire şeklinde, anterior ortada, posterior kenarlarda
-- Birden çok dişi ayrı ayrı işaretle, her birinin kendi x,y koordinatını ver
-- HER TEDAVİ GEREKTİREN DİŞ İÇİN bir marker oluştur
-
-Tedavi tiplerine göre renk kodları:
-- "kron" = KIRMIZI daire — Full kaplama kron yapılacak dişler
-- "veneer" = YEŞİL daire — Veneer uygulanacak dişler
-- "implant" = MAVİ daire — İmplant yapılacak bölgeler (eksik dişler)
-- "kanal" = TURUNCU daire — Kanal tedavisi riski
-- "curuk" = SARI daire — Çürük/restorasyon
-- "cerrahi" = MOR daire — Cerrahi müdahale gereken bölge
-
-═══════════════════════════════════════════
-ÖNEMLİ TALİMATLAR
-═══════════════════════════════════════════
-
-1. KISA VE ÖZ YAZ — her alan maks 1-2 cümle
-2. Sadece sorunlu dişleri listele
-3. FOTOĞRAF İŞARETLEMELERİ ÇOK ÖNEMLİ — mümkün olduğunca çok diş işaretle
-4. VENEER/KRON analizi DETAYLI olsun:
-   - Kesim miktarı (mm cinsinden tahmini)
-   - Oklüzal kapanış durumu (Angle sınıfı, overjet, overbite)
-   - Karşıt diş aşınması
-   - Parafonksiyon/bruksizm bulgusu
-   - Mine kalınlığı ve bonding yüzey kalitesi
-5. ESTETİK KLİNİK ODAKLI — full kaplama (zirkonya/e-max) her zaman düşünülecek
-6. ÖNERİLEN PLAN mutlaka olacak:
-   - Toplam kaç dişe işlem (üye sayısı)
-   - FDI aralıkları (ör: "13-23 arası 6 üye e-max")
-   - Cerrahi gereksinimler: implant, greft, sinüs lifting detayları
-   - Kanal tedavisi gereken dişler
-   - Tahmini seans
+FOTOĞRAF İŞARETLEME: Her fotoğrafta tedavi gereken her dişi x,y koordinatlarıyla(%) işaretle.
+Tedavi tipleri: kron(kırmızı), veneer(yeşil), implant(mavi), kanal(turuncu), curuk(sarı), cerrahi(mor)
 
 SADECE JSON döndür:
-
-{
-  "genel_degerlendirme": {
-    "ozet": "1 cümle",
-    "seviye": "iyi/orta/kotu",
-    "detay": "2-3 cümle",
-    "okluzyon": "Angle sınıfı, overjet/overbite bilgisi"
-  },
-  "foto_bulgular": [
-    {
-      "foto_no": 1,
-      "foto_tipi": "frontal/okluzal_ust/okluzal_alt/yarim_acik/panoramik",
-      "isaret": [
-        {
-          "dis_no": "FDI numarası (tek diş, ör: 14)",
-          "x": 35,
-          "y": 40,
-          "tedavi_tipi": "kron/veneer/implant/kanal/curuk/cerrahi",
-          "etiket": "Kısa açıklama (maks 4 kelime, ör: Zirkonya kron gerekli)"
-        }
-      ]
-    }
-  ],
-  "dis_dis_analiz": [
-    {
-      "dis_no": "FDI numarası",
-      "bolge": "Üst sağ/Üst sol/Alt sağ/Alt sol",
-      "durum": "Kısa (maks 10 kelime)",
-      "tedavi": "Kısa tedavi önerisi",
-      "oncelik": "yuksek/orta/dusuk",
-      "kategori": "crown/veneer/implant/canal/missing/bridge"
-    }
-  ],
-  "kron_tedavisi": {
-    "uygunluk": true,
-    "uygun_disler": ["diş no"],
-    "malzeme": "Hangi dişe hangi malzeme (anterior: e-max, posterior: zirkonya gibi)",
-    "kesim": "Tahmini kesim miktarları (mm) ve prep detayı",
-    "kanal_riski": "Hangi dişlerde kanal riski ve yüzde tahmini"
-  },
-  "veneer_tedavisi": {
-    "uygunluk": true,
-    "uygun_disler": ["diş no"],
-    "prep_tipi": "no-prep/minimal (0.3-0.5mm)/full (0.5-0.7mm)",
-    "mine_durumu": "Mine kalınlığı ve bonding yüzey durumu",
-    "not": "Kısa veneer notu"
-  },
-  "implant_degerlendirme": {
-    "gerekli": true,
-    "bolgeler": [
-      {
-        "dis_no": "Eksik diş no",
-        "oneri": "İmplant detayı (çap, boy tahmini)",
-        "cerrahi": "Ek cerrahi gereksinim: greft / sinüs lifting / yok"
-      }
-    ]
-  },
-  "kanal_tedavisi_riski": {
-    "risk_seviyesi": "dusuk/orta/yuksek",
-    "riskli_disler": [
-      { "dis_no": "Diş no", "risk": "Risk nedeni ve yüzde" }
-    ]
-  },
-  "tedavi_plani": {
-    "adimlar": [
-      {
-        "sira": 1,
-        "baslik": "Kısa başlık",
-        "aciklama": "1 cümle",
-        "oncelik": "yuksek/orta/dusuk",
-        "tahmini_seans": "sayı"
-      }
-    ],
-    "toplam_tahmini_seans": "sayı"
-  },
-  "onerilen_plan": {
-    "baslik": "Ör: Full Estetik Rehabilitasyon Planı",
-    "toplam_dis_sayisi": 12,
-    "dis_araliklari": "Ör: Üst 13-23 arası 6 üye, Alt 33-43 arası 6 üye",
-    "full_kaplama": {
-      "anterior": "Hangi dişler, malzeme, üye sayısı (ör: 13-23 e-max, 6 üye)",
-      "posterior": "Hangi dişler, malzeme, üye sayısı (ör: 14-16, 24-26 zirkonya, 6 üye)"
-    },
-    "kanal_tedavisi": "Hangi dişlerde gerekli (ör: 16, 47 — toplam 2 diş)",
-    "implant": "Hangi bölgelere, kaç adet (ör: 36, 46 — 2 implant)",
-    "cerrahi": "Greft, sinüs lifting detayı (ör: 25 bölgesi sinüs lifting gerekli)",
-    "tahmini_seans": "toplam seans sayısı",
-    "notlar": "Önemli klinik notlar (1-2 cümle)"
-  },
-  "alternatif_planlar": [
-    {
-      "plan_adi": "Plan B — Alternatif isim",
-      "toplam_dis_sayisi": 8,
-      "ozet": "Kısa plan özeti",
-      "detaylar": {
-        "veneer": "Hangi dişler",
-        "kron": "Hangi dişler",
-        "implant": "Hangi bölgeler",
-        "kanal": "Hangi dişler",
-        "cerrahi": "Greft/sinüs lifting",
-        "diger": "Diğer tedaviler"
-      },
-      "tahmini_seans": "sayı",
-      "avantaj": "1 cümle",
-      "dezavantaj": "1 cümle"
-    }
-  ]
-}`;
+{"genel_degerlendirme":{"ozet":"1 cümle","seviye":"iyi/orta/kotu","detay":"2 cümle","okluzyon":"Angle, overjet, overbite"},"foto_bulgular":[{"foto_no":1,"foto_tipi":"frontal/okluzal_ust/okluzal_alt/yarim_acik/panoramik","isaret":[{"dis_no":"14","x":35,"y":40,"tedavi_tipi":"kron/veneer/implant/kanal/curuk/cerrahi","etiket":"maks 4 kelime"}]}],"dis_dis_analiz":[{"dis_no":"FDI","bolge":"Üst sağ/sol Alt sağ/sol","durum":"maks 10 kelime","tedavi":"kısa öneri","oncelik":"yuksek/orta/dusuk","kategori":"crown/veneer/implant/canal/missing/bridge"}],"kron_tedavisi":{"uygunluk":true,"uygun_disler":["no"],"malzeme":"anterior e-max, posterior zirkonya gibi","kesim":"mm cinsinden","kanal_riski":"riskli dişler"},"veneer_tedavisi":{"uygunluk":true,"uygun_disler":["no"],"prep_tipi":"no-prep/minimal/full","mine_durumu":"kısa","not":"kısa"},"implant_degerlendirme":{"gerekli":true,"bolgeler":[{"dis_no":"no","oneri":"kısa","cerrahi":"greft/sinüs lifting/yok"}]},"kanal_tedavisi_riski":{"risk_seviyesi":"dusuk/orta/yuksek","riskli_disler":[{"dis_no":"no","risk":"kısa"}]},"tedavi_plani":{"adimlar":[{"sira":1,"baslik":"kısa","aciklama":"1 cümle","oncelik":"yuksek/orta/dusuk","tahmini_seans":"sayı"}],"toplam_tahmini_seans":"sayı"},"onerilen_plan":{"baslik":"Plan başlığı","toplam_dis_sayisi":12,"dis_araliklari":"Üst 13-23 6üye, Alt 33-43 6üye gibi","full_kaplama":{"anterior":"dişler+malzeme+üye","posterior":"dişler+malzeme+üye"},"kanal_tedavisi":"dişler","implant":"bölgeler+adet","cerrahi":"greft/sinüs detay","tahmini_seans":"sayı","notlar":"1 cümle"},"alternatif_planlar":[{"plan_adi":"Plan B","toplam_dis_sayisi":8,"ozet":"kısa","detaylar":{"veneer":"dişler","kron":"dişler","implant":"bölgeler","kanal":"dişler","cerrahi":"detay","diger":"diğer"},"tahmini_seans":"sayı","avantaj":"1 cümle","dezavantaj":"1 cümle"}]}`;
 
         const result = await model.generateContent([prompt, ...imageParts]);
         const response = result.response;
