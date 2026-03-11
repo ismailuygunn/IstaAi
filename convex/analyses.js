@@ -14,6 +14,11 @@ export const create = mutation({
         expectations: v.optional(v.array(v.string())),
         photoCount: v.number(),
         photoTypes: v.array(v.string()),
+        photos: v.optional(v.array(v.object({
+            id: v.string(),
+            title: v.string(),
+            base64: v.string(),
+        }))),
         analysisResult: v.string(),
     },
     handler: async (ctx, args) => {

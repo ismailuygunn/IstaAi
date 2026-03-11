@@ -238,6 +238,7 @@ export default function AnalizPage() {
                 expectations: expectations.length > 0 ? expectations : undefined,
                 photoCount: images.length,
                 photoTypes: images.map((img) => img.id),
+                photos: images.map((img) => ({ id: img.id, title: img.title, base64: img.base64 })),
                 analysisResult: JSON.stringify(data.analysis),
             });
 

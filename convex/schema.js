@@ -3,7 +3,6 @@ import { v } from "convex/values";
 
 export default defineSchema({
     analyses: defineTable({
-        // Patient info
         patientName: v.string(),
         patientAge: v.string(),
         patientGender: v.string(),
@@ -11,14 +10,16 @@ export default defineSchema({
         dentalHistory: v.optional(v.string()),
         allergies: v.optional(v.string()),
         existingTreatments: v.optional(v.string()),
-        // Patient expectations
         expectations: v.optional(v.array(v.string())),
-        // Analysis metadata
         photoCount: v.number(),
         photoTypes: v.array(v.string()),
-        // AI analysis result (stored as JSON string)
+        // Compressed photos stored as base64
+        photos: v.optional(v.array(v.object({
+            id: v.string(),
+            title: v.string(),
+            base64: v.string(),
+        }))),
         analysisResult: v.string(),
-        // Timestamps
         createdAt: v.number(),
     })
         .index("by_creation", ["createdAt"]),

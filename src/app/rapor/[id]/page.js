@@ -24,11 +24,11 @@ const LOWER_RIGHT = [48, 47, 46, 45, 44, 43, 42, 41];
 const LOWER_LEFT = [31, 32, 33, 34, 35, 36, 37, 38];
 
 function getToothClass(toothNum, disList) {
-    if (!disList || !Array.isArray(disList)) return "";
+    if (!disList?.length) return "healthy";
     const dis = disList.find((d) => String(d.dis_no) === String(toothNum));
     if (!dis) return "healthy";
     const cat = (dis.kategori || "").toLowerCase();
-    if (cat === "crown") return "crown-needed";
+    if (cat === "crown" || cat === "bridge") return "crown-needed";
     if (cat === "veneer") return "veneer-candidate";
     if (cat === "implant" || cat === "missing") return "implant-needed";
     if (cat === "canal") return "canal-risk";
@@ -94,7 +94,6 @@ function NotesPanel({ analysisId, section }) {
     const removeNote = useMutation(api.notes.remove);
     const [input, setInput] = useState("");
     const [showForm, setShowForm] = useState(false);
-
     const sectionNotes = (notes || []).filter((n) => n.section === section);
 
     const handleAdd = async () => {
@@ -114,15 +113,8 @@ function NotesPanel({ analysisId, section }) {
             ))}
             {showForm ? (
                 <div className="note-form">
-                    <input
-                        type="text"
-                        className="form-input"
-                        placeholder="Not yazın..."
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                        autoFocus
-                    />
+                    <input type="text" className="form-input" placeholder="Not yazın..." value={input}
+                        onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAdd()} autoFocus />
                     <button className="btn btn-sm btn-primary" onClick={handleAdd}>Kaydet</button>
                     <button className="btn btn-sm btn-secondary" onClick={() => { setShowForm(false); setInput(""); }}>İptal</button>
                 </div>
@@ -130,6 +122,104 @@ function NotesPanel({ analysisId, section }) {
                 <button className="note-add-btn" onClick={() => setShowForm(true)}>+ Not Ekle</button>
             )}
         </div>
+    );
+}
+
+// Photo Gallery with AI annotation overlays
+function PhotoGallery({ photos, fotoBulgular }) {
+    const [lightbox, setLightbox] = useState(null);
+    if (!photos?.length) return null;
+
+    const MARKER_COLORS = { red: "#EF4444", yellow: "#F59E0B", blue: "#3B82F6", green: "#10B981" };
+    const POSITION_MAP = {
+        "sol-üst": { top: "10%", left: "10%" },
+        "sol-alt": { top: "70%", left: "10%" },
+        "orta-üst": { top: "10%", left: "40%" },
+        "orta-alt": { top: "70%", left: "40%" },
+        "orta": { top: "40%", left: "40%" },
+        "sag-üst": { top: "10%", right: "10%", left: "auto" },
+        "sag-alt": { top: "70%", right: "10%", left: "auto" },
+    };
+
+    const getBulgular = (photoIndex) => {
+        if (!fotoBulgular?.length) return [];
+        const item = fotoBulgular.find((f) => f.foto_no === photoIndex + 1);
+        return item?.bulgular || [];
+    };
+
+    return (
+        <>
+            <div className="photo-gallery-grid">
+                {photos.map((photo, idx) => {
+                    const bulgular = getBulgular(idx);
+                    return (
+                        <div key={idx} className="photo-gallery-item" onClick={() => setLightbox(idx)}>
+                            <div className="photo-wrapper">
+                                <img src={photo.base64} alt={photo.title} />
+                                {/* AI Annotation Markers */}
+                                {bulgular.map((b, bi) => {
+                                    const pos = POSITION_MAP[b.konum] || POSITION_MAP["orta"];
+                                    const color = MARKER_COLORS[b.renk] || MARKER_COLORS.yellow;
+                                    return (
+                                        <div key={bi} className="photo-marker" style={{ ...pos, borderColor: color, background: `${color}22` }}
+                                            title={`${b.dis_no}: ${b.bulgu}`}>
+                                            <span className="marker-dot" style={{ background: color }}></span>
+                                            <span className="marker-label" style={{ color }}>{b.dis_no}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div className="photo-title">{photo.title}</div>
+                            {bulgular.length > 0 && (
+                                <div className="photo-badge">{bulgular.length} bulgu</div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Lightbox */}
+            {lightbox !== null && (
+                <div className="lightbox-overlay" onClick={() => setLightbox(null)}>
+                    <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+                        <button className="lightbox-close" onClick={() => setLightbox(null)}>✕</button>
+                        <div className="lightbox-photo-wrapper">
+                            <img src={photos[lightbox].base64} alt={photos[lightbox].title} />
+                            {getBulgular(lightbox).map((b, bi) => {
+                                const pos = POSITION_MAP[b.konum] || POSITION_MAP["orta"];
+                                const color = MARKER_COLORS[b.renk] || MARKER_COLORS.yellow;
+                                return (
+                                    <div key={bi} className="photo-marker lightbox-marker" style={{ ...pos, borderColor: color, background: `${color}33` }}>
+                                        <span className="marker-dot" style={{ background: color }}></span>
+                                        <span className="marker-label" style={{ color }}>{b.dis_no}</span>
+                                        <span className="marker-detail" style={{ color }}>{b.bulgu}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="lightbox-info">
+                            <h4>{photos[lightbox].title}</h4>
+                            {getBulgular(lightbox).length > 0 && (
+                                <div className="lightbox-findings">
+                                    {getBulgular(lightbox).map((b, bi) => (
+                                        <div key={bi} className="finding-row">
+                                            <span className="finding-dot" style={{ background: MARKER_COLORS[b.renk] || "#F59E0B" }}></span>
+                                            <span className="finding-tooth">{b.dis_no}</span>
+                                            <span className="finding-text">{b.bulgu}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <div className="lightbox-nav">
+                            <button disabled={lightbox === 0} onClick={() => setLightbox(lightbox - 1)}>◀ Önceki</button>
+                            <span>{lightbox + 1} / {photos.length}</span>
+                            <button disabled={lightbox === photos.length - 1} onClick={() => setLightbox(lightbox + 1)}>Sonraki ▶</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
 
@@ -143,12 +233,8 @@ export default function RaporPage() {
     const [shareToast, setShareToast] = useState(false);
     const [pdfLoading, setPdfLoading] = useState(false);
 
-    if (record === undefined) {
-        return (<><Navbar /><div className="loading-container"><h2 className="loading-text">Rapor Yükleniyor...</h2></div></>);
-    }
-    if (record === null) {
-        return (<><Navbar /><div className="loading-container"><h2 className="loading-text">Rapor Bulunamadı</h2><button className="btn btn-primary" style={{ marginTop: 24 }} onClick={() => router.push("/analiz")}>Yeni Analiz</button></div></>);
-    }
+    if (record === undefined) return (<><Navbar /><div className="loading-container"><h2 className="loading-text">Rapor Yükleniyor...</h2></div></>);
+    if (record === null) return (<><Navbar /><div className="loading-container"><h2 className="loading-text">Rapor Bulunamadı</h2><button className="btn btn-primary" style={{ marginTop: 24 }} onClick={() => router.push("/analiz")}>Yeni Analiz</button></div></>);
 
     let a = {};
     try { a = JSON.parse(record.analysisResult); } catch { a = {}; }
@@ -156,11 +242,7 @@ export default function RaporPage() {
     const handlePDF = async () => {
         setPdfLoading(true);
         try {
-            const res = await fetch("/api/pdf-export", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ record, analysis: a }),
-            });
+            const res = await fetch("/api/pdf-export", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ record, analysis: a }) });
             if (!res.ok) throw new Error("PDF oluşturulamadı");
             const blob = await res.blob();
             const url = URL.createObjectURL(blob);
@@ -169,9 +251,7 @@ export default function RaporPage() {
             link.download = `ISTADENTAL_${record.patientName?.replace(/\s/g, "_")}.pdf`;
             link.click();
             URL.revokeObjectURL(url);
-        } catch (err) {
-            alert("PDF indirme hatası: " + err.message);
-        }
+        } catch (err) { alert("PDF hatası: " + err.message); }
         setPdfLoading(false);
     };
 
@@ -186,9 +266,10 @@ export default function RaporPage() {
         <>
             <Navbar />
             <div className="report-container">
+                {/* Header */}
                 <div className="report-header">
                     <h1>🦷 Dental Analiz Raporu</h1>
-                    <p style={{ color: "var(--text-secondary)" }}>İSTADENTAL AI — Gemini 3.1 Pro</p>
+                    <p style={{ color: "var(--text-secondary)" }}>İSTADENTAL AI — Gemini 2.5 Pro</p>
                     <div className="report-patient-info">
                         <div className="report-patient-tag"><span className="label">Hasta:</span> {record.patientName}</div>
                         <div className="report-patient-tag"><span className="label">Yaş:</span> {record.patientAge}</div>
@@ -205,10 +286,21 @@ export default function RaporPage() {
                     )}
                 </div>
 
+                {/* Fotoğraflar + AI İşaretlemeleri */}
+                {record.photos?.length > 0 && (
+                    <CollapsibleSection icon="📸" title="Fotoğraflar ve AI Bulguları" subtitle={`${record.photos.length} fotoğraf analiz edildi`}>
+                        <PhotoGallery photos={record.photos} fotoBulgular={a.foto_bulgular} />
+                        <NotesPanel analysisId={params.id} section="fotograflar" />
+                    </CollapsibleSection>
+                )}
+
                 {/* Genel Değerlendirme */}
                 {a.genel_degerlendirme && (
                     <CollapsibleSection icon="🔍" title="Genel Değerlendirme" badge={<SeverityBadge level={a.genel_degerlendirme.seviye} />} subtitle={a.genel_degerlendirme.ozet}>
-                        <div className="report-content"><p>{a.genel_degerlendirme.detay}</p></div>
+                        <div className="report-content">
+                            <p>{a.genel_degerlendirme.detay}</p>
+                            {a.genel_degerlendirme.okluzyon && <p style={{ marginTop: 8 }}><strong>Oklüzyon:</strong> {a.genel_degerlendirme.okluzyon}</p>}
+                        </div>
                         <ToothMap disList={a.dis_dis_analiz} />
                         <NotesPanel analysisId={params.id} section="genel" />
                     </CollapsibleSection>
@@ -238,21 +330,23 @@ export default function RaporPage() {
 
                 {/* Protetik */}
                 {(a.kron_tedavisi || a.veneer_tedavisi) && (
-                    <CollapsibleSection icon="👑" title="Protetik Değerlendirme" subtitle="Kron & Veneer">
+                    <CollapsibleSection icon="👑" title="Protetik Değerlendirme" subtitle="Kron & Veneer Detay">
                         <div className="report-content">
                             {a.kron_tedavisi && (
                                 <div className="plan-block">
-                                    <h4>👑 Kron {a.kron_tedavisi.uygunluk ? <span style={{ color: "var(--success)", fontSize: "0.85rem" }}> ✅</span> : <span style={{ color: "var(--danger)", fontSize: "0.85rem" }}> ❌</span>}</h4>
+                                    <h4>👑 Kron {a.kron_tedavisi.uygunluk ? <span style={{ color: "var(--success)" }}> ✅</span> : <span style={{ color: "var(--danger)" }}> ❌</span>}</h4>
                                     {a.kron_tedavisi.uygun_disler?.length > 0 && <div className="tooth-list" style={{ marginBottom: 8 }}>{a.kron_tedavisi.uygun_disler.map((d, i) => <span key={i} className="tooth-tag crown">{d}</span>)}</div>}
                                     {a.kron_tedavisi.malzeme && <p><strong>Malzeme:</strong> {a.kron_tedavisi.malzeme}</p>}
+                                    {a.kron_tedavisi.kesim && <p><strong>Kesim:</strong> {a.kron_tedavisi.kesim}</p>}
                                     {a.kron_tedavisi.kanal_riski && <p className="risk-text">⚠️ {a.kron_tedavisi.kanal_riski}</p>}
                                 </div>
                             )}
                             {a.veneer_tedavisi && (
                                 <div className="plan-block">
-                                    <h4>✨ Veneer {a.veneer_tedavisi.uygunluk ? <span style={{ color: "var(--success)", fontSize: "0.85rem" }}> ✅</span> : <span style={{ color: "var(--danger)", fontSize: "0.85rem" }}> ❌</span>}</h4>
+                                    <h4>✨ Veneer {a.veneer_tedavisi.uygunluk ? <span style={{ color: "var(--success)" }}> ✅</span> : <span style={{ color: "var(--danger)" }}> ❌</span>}</h4>
                                     {a.veneer_tedavisi.uygun_disler?.length > 0 && <div className="tooth-list" style={{ marginBottom: 8 }}>{a.veneer_tedavisi.uygun_disler.map((d, i) => <span key={i} className="tooth-tag veneer">{d}</span>)}</div>}
                                     {a.veneer_tedavisi.prep_tipi && <p><strong>Prep:</strong> {a.veneer_tedavisi.prep_tipi}</p>}
+                                    {a.veneer_tedavisi.mine_durumu && <p><strong>Mine Durumu:</strong> {a.veneer_tedavisi.mine_durumu}</p>}
                                     {a.veneer_tedavisi.not && <p>{a.veneer_tedavisi.not}</p>}
                                 </div>
                             )}
@@ -261,7 +355,7 @@ export default function RaporPage() {
                     </CollapsibleSection>
                 )}
 
-                {/* Kanal */}
+                {/* Kanal Tedavisi Riski */}
                 {a.kanal_tedavisi_riski?.riskli_disler?.length > 0 && (
                     <CollapsibleSection icon="🔬" title="Kanal Tedavisi Riski" badge={<SeverityBadge level={a.kanal_tedavisi_riski.risk_seviyesi} />} defaultOpen={false}>
                         <div className="report-content">
@@ -276,25 +370,73 @@ export default function RaporPage() {
 
                 {/* İmplant */}
                 {a.implant_degerlendirme?.gerekli && (
-                    <CollapsibleSection icon="🔩" title="İmplant" badge={<span style={{ color: "var(--warning)", fontSize: "0.85rem" }}>⚠️ Gerekli</span>} defaultOpen={false}>
+                    <CollapsibleSection icon="🔩" title="İmplant Değerlendirme" defaultOpen={false}>
                         <div className="report-content">
-                            {(a.implant_degerlendirme.bolgeler || a.implant_degerlendirme.gerekli_bolgeler || []).map((b, i) => (
-                                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                                    <span className="tooth-tag implant">{b.dis_no}</span><span style={{ fontSize: "0.85rem" }}>{b.oneri}</span>
+                            {(a.implant_degerlendirme.bolgeler || []).map((b, i) => (
+                                <div key={i} className="implant-row">
+                                    <span className="tooth-tag implant">{b.dis_no}</span>
+                                    <div>
+                                        <span style={{ fontSize: "0.85rem" }}>{b.oneri}</span>
+                                        {b.cerrahi && b.cerrahi !== "yok" && <div className="risk-text" style={{ fontSize: "0.8rem" }}>🏥 {b.cerrahi}</div>}
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </CollapsibleSection>
                 )}
 
-                {/* Tedavi Planı */}
+                {/* ÖNERİLEN PLAN — Primary */}
+                {a.onerilen_plan && (
+                    <div className="recommended-plan-card">
+                        <div className="rp-header">
+                            <div className="rp-icon">⭐</div>
+                            <div>
+                                <h3>{a.onerilen_plan.baslik || "Önerilen Tedavi Planı"}</h3>
+                                <p className="rp-subtitle">Toplam <strong>{a.onerilen_plan.toplam_dis_sayisi}</strong> üye · Tahmini <strong>{a.onerilen_plan.tahmini_seans}</strong> seans</p>
+                            </div>
+                        </div>
+
+                        {a.onerilen_plan.dis_araliklari && (
+                            <div className="rp-ranges">
+                                <span className="rp-ranges-label">📐 Diş Aralıkları:</span>
+                                <span>{a.onerilen_plan.dis_araliklari}</span>
+                            </div>
+                        )}
+
+                        <div className="rp-details">
+                            {a.onerilen_plan.full_kaplama && (
+                                <div className="rp-detail-section">
+                                    <h4>👑 Full Kaplama</h4>
+                                    {a.onerilen_plan.full_kaplama.anterior && <p><strong>Anterior:</strong> {a.onerilen_plan.full_kaplama.anterior}</p>}
+                                    {a.onerilen_plan.full_kaplama.posterior && <p><strong>Posterior:</strong> {a.onerilen_plan.full_kaplama.posterior}</p>}
+                                </div>
+                            )}
+                            {a.onerilen_plan.kanal_tedavisi && (
+                                <div className="rp-detail-row"><span className="rp-label canal-label">🔬 Kanal</span><span>{a.onerilen_plan.kanal_tedavisi}</span></div>
+                            )}
+                            {a.onerilen_plan.implant && (
+                                <div className="rp-detail-row"><span className="rp-label implant-label">🔩 İmplant</span><span>{a.onerilen_plan.implant}</span></div>
+                            )}
+                            {a.onerilen_plan.cerrahi && (
+                                <div className="rp-detail-row"><span className="rp-label cerrahi-label">🏥 Cerrahi</span><span>{a.onerilen_plan.cerrahi}</span></div>
+                            )}
+                        </div>
+
+                        {a.onerilen_plan.notlar && (
+                            <div className="rp-notes">📋 {a.onerilen_plan.notlar}</div>
+                        )}
+                        <NotesPanel analysisId={params.id} section="onerilen_plan" />
+                    </div>
+                )}
+
+                {/* Tedavi Planı Adımları */}
                 {a.tedavi_plani?.adimlar?.length > 0 && (
-                    <CollapsibleSection icon="📋" title="Tedavi Planı" subtitle={`Tahmini ${a.tedavi_plani.toplam_tahmini_seans || "?"} seans`}>
+                    <CollapsibleSection icon="📋" title="Tedavi Adımları" subtitle={`Tahmini ${a.tedavi_plani.toplam_tahmini_seans || "?"} seans`} defaultOpen={false}>
                         <div className="report-content">
                             <div className="treatment-timeline">
                                 {a.tedavi_plani.adimlar.map((adim, i) => (
                                     <div key={i} className="treatment-item">
-                                        <div className="priority">{adim.oncelik === "yuksek" ? "🔴" : adim.oncelik === "orta" ? "🟡" : "🟢"} Adım {adim.sira} — {adim.tahmini_seans || "?"} seans</div>
+                                        <div className="priority">{adim.oncelik === "yuksek" ? "🔴" : adim.oncelik === "orta" ? "🟡" : "🟢"} Adım {adim.sira}</div>
                                         <h4>{adim.baslik}</h4><p>{adim.aciklama}</p>
                                     </div>
                                 ))}
@@ -306,13 +448,13 @@ export default function RaporPage() {
 
                 {/* Alternatif Planlar */}
                 {a.alternatif_planlar?.length > 0 && (
-                    <CollapsibleSection icon="🎯" title="Alternatif Tedavi Planları" subtitle="Farklı senaryolar">
+                    <CollapsibleSection icon="🎯" title="Alternatif Planlar" subtitle="Farklı senaryolar" defaultOpen={false}>
                         <div className="alt-plans-grid">
                             {a.alternatif_planlar.map((plan, i) => (
-                                <div key={i} className={`alt-plan-card ${i === 0 ? "recommended" : ""}`}>
+                                <div key={i} className="alt-plan-card">
                                     <div className="alt-plan-header">
                                         <span className="alt-plan-name">{plan.plan_adi}</span>
-                                        {i === 0 && <span className="alt-plan-badge">Önerilen</span>}
+                                        {plan.toplam_dis_sayisi && <span className="alt-plan-badge">{plan.toplam_dis_sayisi} üye</span>}
                                         <span className="alt-plan-seans">{plan.tahmini_seans} seans</span>
                                     </div>
                                     <p className="alt-plan-ozet">{plan.ozet}</p>
@@ -322,6 +464,7 @@ export default function RaporPage() {
                                             {plan.detaylar.kron && <div className="alt-plan-row"><span className="alt-label crown-label">Kron</span><span>{plan.detaylar.kron}</span></div>}
                                             {plan.detaylar.implant && <div className="alt-plan-row"><span className="alt-label implant-label">İmplant</span><span>{plan.detaylar.implant}</span></div>}
                                             {plan.detaylar.kanal && <div className="alt-plan-row"><span className="alt-label canal-label">Kanal</span><span>{plan.detaylar.kanal}</span></div>}
+                                            {plan.detaylar.cerrahi && <div className="alt-plan-row"><span className="alt-label cerrahi-label">Cerrahi</span><span>{plan.detaylar.cerrahi}</span></div>}
                                             {plan.detaylar.diger && <div className="alt-plan-row"><span className="alt-label other-label">Diğer</span><span>{plan.detaylar.diger}</span></div>}
                                         </div>
                                     )}
@@ -332,7 +475,6 @@ export default function RaporPage() {
                                 </div>
                             ))}
                         </div>
-                        <NotesPanel analysisId={params.id} section="alternatif" />
                     </CollapsibleSection>
                 )}
 
@@ -344,9 +486,7 @@ export default function RaporPage() {
 
                 {/* Actions */}
                 <div className="report-actions">
-                    <button className="btn btn-secondary" onClick={handlePDF} disabled={pdfLoading}>
-                        {pdfLoading ? "⏳ Oluşturuluyor..." : "📥 PDF İndir"}
-                    </button>
+                    <button className="btn btn-secondary" onClick={handlePDF} disabled={pdfLoading}>{pdfLoading ? "⏳ Oluşturuluyor..." : "📥 PDF İndir"}</button>
                     <button className="btn btn-secondary" onClick={handleShare}>🔗 Paylaş</button>
                     <button className="btn btn-secondary" onClick={() => window.print()}>🖨️ Yazdır</button>
                     <button className="btn btn-secondary" onClick={() => router.push("/gecmis")}>📂 Geçmiş</button>
@@ -354,13 +494,7 @@ export default function RaporPage() {
                 </div>
             </div>
 
-            {/* Share Toast */}
-            {shareToast && (
-                <div className="toast-notification">
-                    ✅ Paylaşım linki panoya kopyalandı!
-                </div>
-            )}
-
+            {shareToast && <div className="toast-notification">✅ Paylaşım linki panoya kopyalandı!</div>}
             <Footer />
         </>
     );
