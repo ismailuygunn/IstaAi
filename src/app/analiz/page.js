@@ -101,12 +101,12 @@ export default function AnalizPage() {
         );
     };
 
-    // Compress image to max 1200px, JPEG 0.7 quality
+    // Compress image to max 800px, JPEG 0.5 quality (Convex 1MB doc limit)
     const compressImage = (file) => {
         return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => {
-                const MAX = 1200;
+                const MAX = 800;
                 let w = img.width, h = img.height;
                 if (w > MAX || h > MAX) {
                     if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
@@ -117,7 +117,7 @@ export default function AnalizPage() {
                 canvas.height = h;
                 const ctx = canvas.getContext("2d");
                 ctx.drawImage(img, 0, 0, w, h);
-                const compressed = canvas.toDataURL("image/jpeg", 0.7);
+                const compressed = canvas.toDataURL("image/jpeg", 0.5);
                 resolve(compressed);
             };
             img.src = URL.createObjectURL(file);
