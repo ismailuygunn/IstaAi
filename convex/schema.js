@@ -22,4 +22,12 @@ export default defineSchema({
         createdAt: v.number(),
     })
         .index("by_creation", ["createdAt"]),
+
+    notes: defineTable({
+        analysisId: v.id("analyses"),
+        section: v.string(),
+        content: v.string(),
+        createdAt: v.number(),
+    })
+        .index("by_analysis", ["analysisId"]),
 });

@@ -29,6 +29,7 @@ export default function Navbar() {
                     <li><Link href="/" onClick={() => setMenuOpen(false)}>Ana Sayfa</Link></li>
                     <li><Link href="/analiz" onClick={() => setMenuOpen(false)}>AI Analiz</Link></li>
                     <li><Link href="/gecmis" onClick={() => setMenuOpen(false)}>Geçmiş</Link></li>
+                    <li><Link href="/istatistik" onClick={() => setMenuOpen(false)}>📊 İstatistik</Link></li>
                     <li><Link href="/analiz" className="navbar-cta" onClick={() => setMenuOpen(false)}>🦷 Analiz Başlat</Link></li>
                 </ul>
             </div>
