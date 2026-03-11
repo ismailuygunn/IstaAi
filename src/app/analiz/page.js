@@ -1,0 +1,565 @@
+"use client";
+
+import { useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+
+const PHOTO_SLOTS = [
+    {
+        id: "mouth_closed",
+        title: "Ağız Tam Kapalı",
+        description: "Dişler kapalı, dudaklar geri çekilmiş (önden görünüm)",
+        icon: "😬",
+        required: true,
+        guide: "Dişlerinizi sıkın ve dudaklarınızı parmaklarınızla kenarlara çekin. Tüm ön dişler görünmeli.",
+    },
+    {
+        id: "mouth_open",
+        title: "Ağız Yarım Açık",
+        description: "Ağız yarı açık, oklüzal ilişki görünür",
+        icon: "😮",
+        required: true,
+        guide: "Ağzınızı yarım açın, alt ve üst dişlerin kapanışı ve ısırma ilişkisi görünsün.",
+    },
+    {
+        id: "lower_jaw",
+        title: "Alt Çene Üstten Görünüm",
+        description: "Alt çene oklüzal yüzey (ayna ile)",
+        icon: "⬇️",
+        required: true,
+        guide: "Ağzınızı açın, ayna yardımı ile alt çenenizin üstten oklüzal görüntüsünü çekin.",
+    },
+    {
+        id: "upper_jaw",
+        title: "Üst Çene Alttan Görünüm",
+        description: "Üst çene oklüzal yüzey (ayna ile)",
+        icon: "⬆️",
+        required: true,
+        guide: "Ağzınızı açın, ayna yardımı ile üst çenenizin alttan oklüzal görüntüsünü çekin.",
+    },
+    {
+        id: "xray",
+        title: "Röntgen / Panoramik",
+        description: "Panoramik röntgen filmi (varsa)",
+        icon: "📷",
+        required: false,
+        guide: "Eğer elinizde panoramik diş röntgeniniz varsa yükleyin. Daha detaylı analiz sağlar.",
+    },
+];
+
+export default function AnalizPage() {
+    const router = useRouter();
+    const createAnalysis = useMutation(api.analyses.create);
+    const [step, setStep] = useState(1);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [loadingStep, setLoadingStep] = useState(0);
+    const [error, setError] = useState(null);
+
+    // Patient info
+    const [formData, setFormData] = useState({
+        fullName: "",
+        age: "",
+        gender: "",
+        complaint: "",
+        dentalHistory: "",
+        allergies: "",
+        existingTreatments: "",
+    });
+
+    // Photos
+    const [photos, setPhotos] = useState({});
+    const fileInputRefs = useRef({});
+
+    // Guide modal
+    const [guideModal, setGuideModal] = useState(null);
+
+    const handleFormChange = (field, value) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handlePhotoDrop = useCallback((slotId, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const file = e.dataTransfer?.files?.[0] || e.target?.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            alert("Lütfen geçerli bir fotoğraf dosyası seçin (JPEG, PNG)");
+            return;
+        }
+        if (file.size > 20 * 1024 * 1024) {
+            alert("Dosya boyutu 20MB'den küçük olmalıdır");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            setPhotos((prev) => ({
+                ...prev,
+                [slotId]: { file, preview: ev.target.result, base64: ev.target.result },
+            }));
+        };
+        reader.readAsDataURL(file);
+    }, []);
+
+    const removePhoto = (slotId) => {
+        setPhotos((prev) => {
+            const next = { ...prev };
+            delete next[slotId];
+            return next;
+        });
+    };
+
+    const requiredPhotosReady = PHOTO_SLOTS.filter((s) => s.required).every(
+        (s) => photos[s.id]
+    );
+
+    const formValid =
+        formData.fullName.trim() && formData.age && formData.gender && formData.complaint.trim();
+
+    const loadingMessages = [
+        "Fotoğraflar analiz ediliyor...",
+        "Diş yapıları tespit ediliyor...",
+        "Kron uygunluğu değerlendiriliyor...",
+        "Veneer fizibilitesi inceleniyor...",
+        "Kanal tedavisi riskleri hesaplanıyor...",
+        "İmplant gereksinimleri belirleniyor...",
+        "Tedavi planı oluşturuluyor...",
+        "Rapor hazırlanıyor...",
+    ];
+
+    const handleSubmit = async () => {
+        setIsAnalyzing(true);
+        setError(null);
+        setLoadingStep(0);
+
+        const interval = setInterval(() => {
+            setLoadingStep((prev) => {
+                if (prev < loadingMessages.length - 1) return prev + 1;
+                return prev;
+            });
+        }, 3000);
+
+        try {
+            // Build images array
+            const images = [];
+            PHOTO_SLOTS.forEach((slot) => {
+                if (photos[slot.id]) {
+                    images.push({
+                        id: slot.id,
+                        title: slot.title,
+                        base64: photos[slot.id].base64,
+                    });
+                }
+            });
+
+            const res = await fetch("/api/analyze", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ patientInfo: formData, images }),
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || "Analiz sırasında bir hata oluştu");
+            }
+
+            const data = await res.json();
+            clearInterval(interval);
+
+            // Save to Convex database
+            const analysisId = await createAnalysis({
+                patientName: formData.fullName,
+                patientAge: formData.age,
+                patientGender: formData.gender,
+                complaint: formData.complaint,
+                dentalHistory: formData.dentalHistory || undefined,
+                allergies: formData.allergies || undefined,
+                existingTreatments: formData.existingTreatments || undefined,
+                photoCount: images.length,
+                photoTypes: images.map((img) => img.id),
+                analysisResult: JSON.stringify(data.analysis),
+            });
+
+            // Navigate to report page with Convex ID
+            router.push(`/rapor/${analysisId}`);
+        } catch (err) {
+            clearInterval(interval);
+            setIsAnalyzing(false);
+            setError(err.message);
+        }
+    };
+
+    // Loading screen
+    if (isAnalyzing) {
+        return (
+            <>
+                <Navbar />
+                <div className="loading-container">
+                    <div className="loading-tooth">
+                        <svg viewBox="0 0 120 170" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M92 10C72 2 55 8 48 18C38 8 18 0 8 18C-5 40 5 85 15 120C22 145 30 170 45 170C58 170 55 130 50 110C50 110 52 112 55 112C58 112 60 110 60 110C65 130 62 170 75 170C90 170 98 145 105 120C115 85 125 40 112 18C108 12 100 8 92 10Z" fill="#3B82F6" />
+                            <path d="M60 110C60 110 58 112 55 112C52 112 50 110 50 110C50 95 48 75 42 58C38 48 30 38 28 48C24 65 32 90 35 105" fill="#60A5FA" opacity="0.4" />
+                        </svg>
+                    </div>
+                    <div className="loading-bar">
+                        <div className="loading-bar-fill"></div>
+                    </div>
+                    <h2 className="loading-text">AI Analiz Devam Ediyor</h2>
+                    <p className="loading-subtext">
+                        Yapay zeka fotoğraflarınızı detaylı olarak inceliyor
+                    </p>
+                    <div className="loading-steps">
+                        {loadingMessages.map((msg, i) => (
+                            <div
+                                key={i}
+                                className={`loading-step ${i < loadingStep ? "done" : ""} ${i === loadingStep ? "active" : ""}`}
+                            >
+                                <span>{i < loadingStep ? "✅" : i === loadingStep ? "⏳" : "⬜"}</span>
+                                <span>{msg}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </>
+        );
+    }
+
+    return (
+        <>
+            <Navbar />
+
+            <div className="wizard-container">
+                <div className="wizard-header">
+                    <h1>🦷 AI Doktor&apos;a Sor</h1>
+                    <p>Kapsamlı diş analizi için bilgilerinizi girin ve fotoğraflarınızı yükleyin</p>
+                </div>
+
+                {/* Step Indicator */}
+                <div className="step-indicator">
+                    <div className={`step-dot ${step >= 1 ? "active" : ""} ${step > 1 ? "completed" : ""}`}>
+                        <div className="step-dot-circle">{step > 1 ? "✓" : "1"}</div>
+                        <span className="step-dot-label">Bilgiler</span>
+                    </div>
+                    <div className={`step-line ${step > 1 ? "active" : ""}`}></div>
+                    <div className={`step-dot ${step >= 2 ? "active" : ""} ${step > 2 ? "completed" : ""}`}>
+                        <div className="step-dot-circle">{step > 2 ? "✓" : "2"}</div>
+                        <span className="step-dot-label">Fotoğraflar</span>
+                    </div>
+                    <div className={`step-line ${step > 2 ? "active" : ""}`}></div>
+                    <div className={`step-dot ${step >= 3 ? "active" : ""}`}>
+                        <div className="step-dot-circle">3</div>
+                        <span className="step-dot-label">Analiz</span>
+                    </div>
+                </div>
+
+                {error && (
+                    <div style={{ background: 'var(--danger-bg)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', marginBottom: 'var(--space-lg)', color: 'var(--danger)', fontSize: '0.9rem' }}>
+                        ⚠️ {error}
+                    </div>
+                )}
+
+                {/* STEP 1: Patient Info */}
+                {step === 1 && (
+                    <div className="card">
+                        <h2 style={{ marginBottom: 'var(--space-lg)', fontSize: '1.3rem' }}>
+                            📋 Hasta Bilgileri
+                        </h2>
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">
+                                    Ad Soyad <span className="required">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="Adınız ve soyadınız"
+                                    value={formData.fullName}
+                                    onChange={(e) => handleFormChange("fullName", e.target.value)}
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">
+                                    Yaş <span className="required">*</span>
+                                </label>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    placeholder="Yaşınız"
+                                    min="1"
+                                    max="120"
+                                    value={formData.age}
+                                    onChange={(e) => handleFormChange("age", e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">
+                                    Cinsiyet <span className="required">*</span>
+                                </label>
+                                <select
+                                    className="form-select"
+                                    value={formData.gender}
+                                    onChange={(e) => handleFormChange("gender", e.target.value)}
+                                >
+                                    <option value="">Seçiniz</option>
+                                    <option value="erkek">Erkek</option>
+                                    <option value="kadın">Kadın</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Alerjiler</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="Bilinen alerjileriniz (varsa)"
+                                    value={formData.allergies}
+                                    onChange={(e) => handleFormChange("allergies", e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">
+                                Şikayet / İstek <span className="required">*</span>
+                            </label>
+                            <textarea
+                                className="form-textarea"
+                                placeholder="Örn: Ön dişlerimde estetik görünüm istiyorum, arka dişlerimde çürük var..."
+                                value={formData.complaint}
+                                onChange={(e) => handleFormChange("complaint", e.target.value)}
+                                rows={3}
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Dental Geçmiş</label>
+                            <textarea
+                                className="form-textarea"
+                                placeholder="Daha önce yapılan tedaviler, bilinen dental sorunlar..."
+                                value={formData.dentalHistory}
+                                onChange={(e) => handleFormChange("dentalHistory", e.target.value)}
+                                rows={2}
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Mevcut Tedaviler</label>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Şu an devam eden tedaviler (varsa)"
+                                value={formData.existingTreatments}
+                                onChange={(e) => handleFormChange("existingTreatments", e.target.value)}
+                            />
+                        </div>
+
+                        <div className="wizard-actions">
+                            <div></div>
+                            <button
+                                className="btn btn-primary"
+                                disabled={!formValid}
+                                onClick={() => setStep(2)}
+                            >
+                                Devam →
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* STEP 2: Photo Upload */}
+                {step === 2 && (
+                    <div className="card">
+                        <h2 style={{ marginBottom: 'var(--space-md)', fontSize: '1.3rem' }}>
+                            📸 Fotoğraf Yükleme
+                        </h2>
+
+                        <div className="upload-guide">
+                            <h3>💡 İpuçları</h3>
+                            <ul>
+                                <li>Net ve iyi aydınlatılmış fotoğraflar daha doğru analiz sağlar</li>
+                                <li>Ağız içi ayna kullanarak alt/üst çene fotoğrafları çekin</li>
+                                <li>Fotoğraflar JPEG veya PNG formatında, max 20MB olmalıdır</li>
+                                <li>Panoramik röntgen yüklenmesi analiz kalitesini artırır</li>
+                            </ul>
+                        </div>
+
+                        <div className="upload-grid">
+                            {PHOTO_SLOTS.map((slot) => (
+                                <div
+                                    key={slot.id}
+                                    className={`upload-slot ${photos[slot.id] ? "has-image" : ""} ${!slot.required ? "optional" : ""}`}
+                                    onClick={() => {
+                                        if (!photos[slot.id]) {
+                                            fileInputRefs.current[slot.id]?.click();
+                                        }
+                                    }}
+                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                    onDrop={(e) => handlePhotoDrop(slot.id, e)}
+                                >
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        ref={(el) => (fileInputRefs.current[slot.id] = el)}
+                                        onChange={(e) => handlePhotoDrop(slot.id, e)}
+                                    />
+
+                                    {photos[slot.id] ? (
+                                        <>
+                                            <img
+                                                src={photos[slot.id].preview}
+                                                alt={slot.title}
+                                                className="upload-preview"
+                                            />
+                                            <div className="upload-overlay">
+                                                <button
+                                                    className="btn-replace"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        fileInputRefs.current[slot.id]?.click();
+                                                    }}
+                                                >
+                                                    Değiştir
+                                                </button>
+                                                <button
+                                                    className="btn-remove"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        removePhoto(slot.id);
+                                                    }}
+                                                >
+                                                    Kaldır
+                                                </button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="upload-slot-icon">{slot.icon}</div>
+                                            <div className="upload-slot-title">{slot.title}</div>
+                                            <div className="upload-slot-desc">{slot.description}</div>
+                                            <span className={`upload-slot-badge ${slot.required ? "required" : "optional-badge"}`}>
+                                                {slot.required ? "Zorunlu" : "Opsiyonel"}
+                                            </span>
+                                            <button
+                                                className="btn btn-sm btn-secondary"
+                                                style={{ marginTop: 10, fontSize: '0.75rem' }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setGuideModal(slot);
+                                                }}
+                                            >
+                                                📖 Nasıl Çekilir?
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="wizard-actions">
+                            <button className="btn btn-secondary" onClick={() => setStep(1)}>
+                                ← Geri
+                            </button>
+                            <button
+                                className="btn btn-primary"
+                                disabled={!requiredPhotosReady}
+                                onClick={() => setStep(3)}
+                            >
+                                Devam →
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* STEP 3: Review & Submit */}
+                {step === 3 && (
+                    <div className="card">
+                        <h2 style={{ marginBottom: 'var(--space-lg)', fontSize: '1.3rem' }}>
+                            📋 Gözden Geçir ve Analiz Başlat
+                        </h2>
+
+                        <div className="review-info-card">
+                            <div className="review-info-row">
+                                <span className="label">Ad Soyad</span>
+                                <span className="value">{formData.fullName}</span>
+                            </div>
+                            <div className="review-info-row">
+                                <span className="label">Yaş</span>
+                                <span className="value">{formData.age}</span>
+                            </div>
+                            <div className="review-info-row">
+                                <span className="label">Cinsiyet</span>
+                                <span className="value">{formData.gender}</span>
+                            </div>
+                            <div className="review-info-row">
+                                <span className="label">Şikayet / İstek</span>
+                                <span className="value">{formData.complaint}</span>
+                            </div>
+                            {formData.dentalHistory && (
+                                <div className="review-info-row">
+                                    <span className="label">Dental Geçmiş</span>
+                                    <span className="value">{formData.dentalHistory}</span>
+                                </div>
+                            )}
+                            {formData.allergies && (
+                                <div className="review-info-row">
+                                    <span className="label">Alerjiler</span>
+                                    <span className="value">{formData.allergies}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <h3 style={{ marginBottom: 'var(--space-md)', fontSize: '1rem' }}>
+                            Yüklenen Fotoğraflar ({Object.keys(photos).length})
+                        </h3>
+                        <div className="review-grid">
+                            {PHOTO_SLOTS.filter((s) => photos[s.id]).map((slot) => (
+                                <div key={slot.id}>
+                                    <div className="review-photo">
+                                        <img src={photos[slot.id].preview} alt={slot.title} />
+                                    </div>
+                                    <div className="review-photo-label">{slot.title}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="wizard-actions">
+                            <button className="btn btn-secondary" onClick={() => setStep(2)}>
+                                ← Geri
+                            </button>
+                            <button className="btn btn-accent btn-lg" onClick={handleSubmit}>
+                                🤖 AI Analiz Başlat
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Guide Modal */}
+            {guideModal && (
+                <div className="modal-backdrop" onClick={() => setGuideModal(null)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>{guideModal.icon} {guideModal.title}</h3>
+                            <button className="modal-close" onClick={() => setGuideModal(null)}>✕</button>
+                        </div>
+                        <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: 'var(--space-lg)' }}>
+                            {guideModal.guide}
+                        </p>
+                        <div style={{ background: 'var(--info-bg)', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', fontSize: '0.85rem', color: 'var(--text-accent)' }}>
+                            💡 <strong>İpucu:</strong> İyi aydınlatma ve net odak, AI analizinin doğruluğunu artırır.
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <Footer />
+        </>
+    );
+}
