@@ -1,6 +1,11 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+// Generate upload URL for file storage
+export const generateUploadUrl = mutation(async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+});
+
 // Create a new analysis record
 export const create = mutation({
     args: {
@@ -14,10 +19,10 @@ export const create = mutation({
         expectations: v.optional(v.array(v.string())),
         photoCount: v.number(),
         photoTypes: v.array(v.string()),
-        photos: v.optional(v.array(v.object({
+        photoStorageIds: v.optional(v.array(v.object({
             id: v.string(),
             title: v.string(),
-            base64: v.string(),
+            storageId: v.id("_storage"),
         }))),
         analysisResult: v.string(),
     },
@@ -42,11 +47,25 @@ export const getAll = query({
     },
 });
 
-// Get a single analysis by ID
+// Get a single analysis by ID, with photo URLs resolved
 export const getById = query({
     args: { id: v.id("analyses") },
     handler: async (ctx, args) => {
-        return await ctx.db.get(args.id);
+        const analysis = await ctx.db.get(args.id);
+        if (!analysis) return null;
+
+        // Resolve storage IDs to URLs
+        if (analysis.photoStorageIds?.length) {
+            const photos = await Promise.all(
+                analysis.photoStorageIds.map(async (p) => {
+                    const url = await ctx.storage.getUrl(p.storageId);
+                    return { id: p.id, title: p.title, url };
+                })
+            );
+            return { ...analysis, photos };
+        }
+
+        return analysis;
     },
 });
 
@@ -54,6 +73,13 @@ export const getById = query({
 export const remove = mutation({
     args: { id: v.id("analyses") },
     handler: async (ctx, args) => {
+        const analysis = await ctx.db.get(args.id);
+        // Clean up stored photos
+        if (analysis?.photoStorageIds?.length) {
+            for (const p of analysis.photoStorageIds) {
+                await ctx.storage.delete(p.storageId);
+            }
+        }
         await ctx.db.delete(args.id);
     },
 });

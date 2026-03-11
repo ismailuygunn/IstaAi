@@ -13,11 +13,11 @@ export default defineSchema({
         expectations: v.optional(v.array(v.string())),
         photoCount: v.number(),
         photoTypes: v.array(v.string()),
-        // Compressed photos stored as base64
-        photos: v.optional(v.array(v.object({
+        // Photos stored as Convex file storage IDs (no 1MB limit)
+        photoStorageIds: v.optional(v.array(v.object({
             id: v.string(),
             title: v.string(),
-            base64: v.string(),
+            storageId: v.id("_storage"),
         }))),
         analysisResult: v.string(),
         createdAt: v.number(),

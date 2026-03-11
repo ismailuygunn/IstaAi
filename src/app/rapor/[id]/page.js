@@ -203,7 +203,7 @@ export default function RaporPage() {
                             {record.photos.map((photo, idx) => (
                                 <AnnotatedPhoto
                                     key={idx}
-                                    src={photo.base64}
+                                    src={photo.url || photo.base64}
                                     title={photo.title}
                                     markers={getMarkers(a.foto_bulgular, idx)}
                                 />

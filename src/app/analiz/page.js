@@ -64,6 +64,7 @@ const PHOTO_SLOTS = [
 export default function AnalizPage() {
     const router = useRouter();
     const createAnalysis = useMutation(api.analyses.create);
+    const generateUploadUrl = useMutation(api.analyses.generateUploadUrl);
     const [step, setStep] = useState(1);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [loadingStep, setLoadingStep] = useState(0);
@@ -101,24 +102,63 @@ export default function AnalizPage() {
         );
     };
 
-    // Compress image to max 800px, JPEG 0.5 quality (Convex 1MB doc limit)
-    const compressImage = (file) => {
+    // Auto-crop dental area + compress
+    // Detects bright region (teeth/gums) and crops out dark backgrounds
+    const autoCropAndCompress = (file) => {
         return new Promise((resolve) => {
             const img = new Image();
             img.onload = () => {
-                const MAX = 800;
-                let w = img.width, h = img.height;
+                // Step 1: Draw full image on temp canvas to analyze pixels
+                const tmpCanvas = document.createElement("canvas");
+                tmpCanvas.width = img.width;
+                tmpCanvas.height = img.height;
+                const tmpCtx = tmpCanvas.getContext("2d");
+                tmpCtx.drawImage(img, 0, 0);
+
+                // Step 2: Find bounding box of bright pixels (dental area)
+                const imageData = tmpCtx.getImageData(0, 0, img.width, img.height);
+                const data = imageData.data;
+                const THRESHOLD = 40; // brightness threshold
+                let minX = img.width, minY = img.height, maxX = 0, maxY = 0;
+
+                // Sample every 4th pixel for speed
+                for (let y = 0; y < img.height; y += 4) {
+                    for (let x = 0; x < img.width; x += 4) {
+                        const i = (y * img.width + x) * 4;
+                        const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                        if (brightness > THRESHOLD) {
+                            if (x < minX) minX = x;
+                            if (x > maxX) maxX = x;
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
+                        }
+                    }
+                }
+
+                // Add padding (5%)
+                const padX = Math.round((maxX - minX) * 0.05);
+                const padY = Math.round((maxY - minY) * 0.05);
+                const cropX = Math.max(0, minX - padX);
+                const cropY = Math.max(0, minY - padY);
+                const cropW = Math.min(img.width - cropX, (maxX - minX) + padX * 2);
+                const cropH = Math.min(img.height - cropY, (maxY - minY) + padY * 2);
+
+                // Step 3: Crop and resize
+                const MAX = 1024;
+                let w = cropW, h = cropH;
                 if (w > MAX || h > MAX) {
                     if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
                     else { w = Math.round(w * MAX / h); h = MAX; }
                 }
+
                 const canvas = document.createElement("canvas");
                 canvas.width = w;
                 canvas.height = h;
                 const ctx = canvas.getContext("2d");
-                ctx.drawImage(img, 0, 0, w, h);
-                const compressed = canvas.toDataURL("image/jpeg", 0.5);
-                resolve(compressed);
+                ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, w, h);
+
+                const base64 = canvas.toDataURL("image/jpeg", 0.75);
+                resolve(base64);
             };
             img.src = URL.createObjectURL(file);
         });
@@ -139,7 +179,7 @@ export default function AnalizPage() {
             return;
         }
 
-        const compressed = await compressImage(file);
+        const compressed = await autoCropAndCompress(file);
         const preview = URL.createObjectURL(file);
         setPhotos((prev) => ({
             ...prev,
@@ -168,17 +208,32 @@ export default function AnalizPage() {
     };
 
     const loadingMessages = [
-        "Fotoğraflar yükleniyor ve işleniyor...",
+        "Fotoğraflar kırpılıyor ve işleniyor...",
         "FDI numaralama sistemi ile dişler tespit ediliyor...",
         "Frontal ve oklüzal görüntüler çapraz doğrulanıyor...",
         "Kron ve full kaplama uygunluğu değerlendiriliyor...",
         "Veneer fizibilitesi ve estetik analiz yapılıyor...",
         "Kanal tedavisi riskleri hesaplanıyor...",
         "İmplant ve köprü gereksinimleri belirleniyor...",
-        "Malzeme karşılaştırmaları oluşturuluyor...",
+        "Fotoğraflar üzerinde AI işaretlemeleri oluşturuluyor...",
         "Tedavi planı ve öncelik sıralaması hazırlanıyor...",
         "Kapsamlı rapor oluşturuluyor...",
     ];
+
+    // Upload a single photo to Convex file storage
+    const uploadPhotoToStorage = async (base64Data) => {
+        const uploadUrl = await generateUploadUrl();
+        // Convert base64 to blob
+        const res = await fetch(base64Data);
+        const blob = await res.blob();
+        const result = await fetch(uploadUrl, {
+            method: "POST",
+            headers: { "Content-Type": blob.type },
+            body: blob,
+        });
+        const { storageId } = await result.json();
+        return storageId;
+    };
 
     const handleSubmit = async () => {
         setIsAnalyzing(true);
@@ -204,6 +259,7 @@ export default function AnalizPage() {
                 }
             });
 
+            // Send to Gemini for analysis
             const res = await fetch("/api/analyze", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -217,7 +273,7 @@ export default function AnalizPage() {
                     const errData = JSON.parse(errText);
                     errMsg = errData.error || errMsg;
                 } catch {
-                    if (res.status === 413) errMsg = "Fotoğraflar çok büyük. Daha düşük çözünürlüklü fotoğraflar deneyin.";
+                    if (res.status === 413) errMsg = "Fotoğraflar çok büyük.";
                     else if (res.status === 504) errMsg = "Analiz zaman aşımına uğradı. Tekrar deneyin.";
                     else errMsg = `Sunucu hatası (${res.status}): ${errText.slice(0, 100)}`;
                 }
@@ -225,6 +281,15 @@ export default function AnalizPage() {
             }
 
             const data = await res.json();
+
+            // Upload photos to Convex file storage (parallel)
+            const photoStorageIds = await Promise.all(
+                images.map(async (img) => {
+                    const storageId = await uploadPhotoToStorage(img.base64);
+                    return { id: img.id, title: img.title, storageId };
+                })
+            );
+
             clearInterval(interval);
 
             const analysisId = await createAnalysis({
@@ -238,7 +303,7 @@ export default function AnalizPage() {
                 expectations: expectations.length > 0 ? expectations : undefined,
                 photoCount: images.length,
                 photoTypes: images.map((img) => img.id),
-                photos: images.map((img) => ({ id: img.id, title: img.title, base64: img.base64 })),
+                photoStorageIds,
                 analysisResult: JSON.stringify(data.analysis),
             });
 
