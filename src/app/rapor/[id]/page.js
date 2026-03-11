@@ -7,7 +7,6 @@ import { api } from "../../../../convex/_generated/api";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
-// Treatment Labels
 const EXPECTATION_LABELS = {
     full_crown: "👑 Full Kaplama Kron",
     monolithic: "💎 Monolitik Kron",
@@ -19,7 +18,6 @@ const EXPECTATION_LABELS = {
     orthodontic: "😁 Ortodonti",
 };
 
-// FDI tooth numbers
 const UPPER_RIGHT = [18, 17, 16, 15, 14, 13, 12, 11];
 const UPPER_LEFT = [21, 22, 23, 24, 25, 26, 27, 28];
 const LOWER_RIGHT = [48, 47, 46, 45, 44, 43, 42, 41];
@@ -37,13 +35,6 @@ function getToothClass(toothNum, disList) {
     return "healthy";
 }
 
-function getToothTooltip(toothNum, disList) {
-    if (!disList || !Array.isArray(disList)) return `Diş ${toothNum}`;
-    const dis = disList.find((d) => String(d.dis_no) === String(toothNum));
-    if (!dis) return `Diş ${toothNum} — Sağlıklı`;
-    return `Diş ${toothNum} — ${dis.durum || ""} | ${dis.tedavi_onerisi || ""}`;
-}
-
 function ToothMap({ disList }) {
     return (
         <div className="tooth-map-container">
@@ -52,29 +43,29 @@ function ToothMap({ disList }) {
                 <div className="tooth-row">
                     <span className="jaw-label">Üst Sağ</span>
                     {UPPER_RIGHT.map((n) => (
-                        <div key={n} className={`tooth-cell ${getToothClass(n, disList)}`} title={getToothTooltip(n, disList)}>{n}</div>
+                        <div key={n} className={`tooth-cell ${getToothClass(n, disList)}`} title={`Diş ${n}`}>{n}</div>
                     ))}
                     {UPPER_LEFT.map((n) => (
-                        <div key={n} className={`tooth-cell ${getToothClass(n, disList)}`} title={getToothTooltip(n, disList)}>{n}</div>
+                        <div key={n} className={`tooth-cell ${getToothClass(n, disList)}`} title={`Diş ${n}`}>{n}</div>
                     ))}
                     <span className="jaw-label" style={{ textAlign: "left", marginLeft: 8, marginRight: 0 }}>Üst Sol</span>
                 </div>
                 <div className="tooth-row">
                     <span className="jaw-label">Alt Sağ</span>
                     {LOWER_RIGHT.map((n) => (
-                        <div key={n} className={`tooth-cell ${getToothClass(n, disList)}`} title={getToothTooltip(n, disList)}>{n}</div>
+                        <div key={n} className={`tooth-cell ${getToothClass(n, disList)}`} title={`Diş ${n}`}>{n}</div>
                     ))}
                     {LOWER_LEFT.map((n) => (
-                        <div key={n} className={`tooth-cell ${getToothClass(n, disList)}`} title={getToothTooltip(n, disList)}>{n}</div>
+                        <div key={n} className={`tooth-cell ${getToothClass(n, disList)}`} title={`Diş ${n}`}>{n}</div>
                     ))}
                     <span className="jaw-label" style={{ textAlign: "left", marginLeft: 8, marginRight: 0 }}>Alt Sol</span>
                 </div>
             </div>
             <div className="tooth-map-legend">
                 <div className="legend-item"><div className="legend-dot healthy"></div>Sağlıklı</div>
-                <div className="legend-item"><div className="legend-dot crown"></div>Kron Gerekli</div>
-                <div className="legend-item"><div className="legend-dot veneer"></div>Veneer Uygun</div>
-                <div className="legend-item"><div className="legend-dot implant"></div>İmplant Gerekli</div>
+                <div className="legend-item"><div className="legend-dot crown"></div>Kron</div>
+                <div className="legend-item"><div className="legend-dot veneer"></div>Veneer</div>
+                <div className="legend-item"><div className="legend-dot implant"></div>İmplant</div>
                 <div className="legend-item"><div className="legend-dot canal"></div>Kanal Riski</div>
             </div>
         </div>
@@ -95,7 +86,7 @@ function CollapsibleSection({ icon, iconColor, title, subtitle, badge, children,
                 <div className={`report-section-icon ${iconColor}`}>{icon}</div>
                 <div style={{ flex: 1 }}>
                     <div className="report-section-title">{title} {badge}</div>
-                    <div className="report-section-subtitle">{subtitle}</div>
+                    {subtitle && <div className="report-section-subtitle">{subtitle}</div>}
                 </div>
                 <div className={`collapse-arrow ${isOpen ? "open" : ""}`}>▼</div>
             </div>
@@ -148,9 +139,6 @@ export default function RaporPage() {
     let a = {};
     try { a = JSON.parse(record.analysisResult); } catch { a = {}; }
 
-    const handlePrint = () => window.print();
-    const handleNewAnalysis = () => router.push("/analiz");
-
     return (
         <>
             <Navbar />
@@ -158,7 +146,7 @@ export default function RaporPage() {
                 {/* Header */}
                 <div className="report-header">
                     <h1>🦷 Dental Analiz Raporu</h1>
-                    <p style={{ color: "var(--text-secondary)" }}>İSTADENTAL AI Destekli Analiz — Gemini 3.1 Pro</p>
+                    <p style={{ color: "var(--text-secondary)" }}>İSTADENTAL AI — Gemini 3.1 Pro</p>
                     <div className="report-patient-info">
                         <div className="report-patient-tag"><span className="label">Hasta:</span> {record.patientName}</div>
                         <div className="report-patient-tag"><span className="label">Yaş:</span> {record.patientAge}</div>
@@ -170,9 +158,7 @@ export default function RaporPage() {
                             <span className="report-exp-label">Tedavi Beklentileri:</span>
                             <div className="report-exp-tags">
                                 {record.expectations.map((id) => (
-                                    <span key={id} className="report-exp-tag">
-                                        {EXPECTATION_LABELS[id] || id}
-                                    </span>
+                                    <span key={id} className="report-exp-tag">{EXPECTATION_LABELS[id] || id}</span>
                                 ))}
                             </div>
                         </div>
@@ -186,35 +172,33 @@ export default function RaporPage() {
                         title="Genel Değerlendirme"
                         badge={<SeverityBadge level={a.genel_degerlendirme.seviye} />}
                         subtitle={a.genel_degerlendirme.ozet}
-                        defaultOpen={true}
                     >
                         <div className="report-content"><p>{a.genel_degerlendirme.detay}</p></div>
                         <ToothMap disList={a.dis_dis_analiz} />
                     </CollapsibleSection>
                 )}
 
-                {/* Diş Diş Analiz */}
+                {/* Diş Diş Analiz — compact table */}
                 {a.dis_dis_analiz && a.dis_dis_analiz.length > 0 && (
                     <CollapsibleSection
                         icon="🗺️" iconColor="blue"
-                        title="Diş Diş Detaylı Analiz"
-                        subtitle={`FDI numaralama sistemi ile ${a.dis_dis_analiz.length} diş değerlendirildi`}
+                        title="Sorunlu Dişler"
+                        subtitle={`${a.dis_dis_analiz.length} diş tedavi gerektiriyor`}
                         defaultOpen={false}
                     >
                         <div style={{ overflowX: "auto" }}>
                             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
                                 <thead>
                                     <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                                        <th style={thStyle}>Diş No</th><th style={thStyle}>Bölge</th><th style={thStyle}>Durum</th><th style={thStyle}>Tedavi Önerisi</th><th style={thStyle}>Öncelik</th>
+                                        <th style={thStyle}>Diş</th><th style={thStyle}>Durum</th><th style={thStyle}>Tedavi</th><th style={thStyle}>Öncelik</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {a.dis_dis_analiz.map((dis, i) => (
                                         <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                                             <td style={tdStyle}><span className={`tooth-tag ${(dis.kategori || "").toLowerCase()}`}>{dis.dis_no}</span></td>
-                                            <td style={tdStyle}>{dis.bolge}</td>
                                             <td style={tdStyle}>{dis.durum}</td>
-                                            <td style={tdStyle}>{dis.tedavi_onerisi}</td>
+                                            <td style={tdStyle}>{dis.tedavi || dis.tedavi_onerisi}</td>
                                             <td style={tdStyle}><SeverityBadge level={dis.oncelik} /></td>
                                         </tr>
                                     ))}
@@ -224,189 +208,148 @@ export default function RaporPage() {
                     </CollapsibleSection>
                 )}
 
-                {/* Full Kaplama Planı */}
-                {a.full_kaplama_plani && a.full_kaplama_plani.uygunluk && (
+                {/* Kron & Veneer — combined compact */}
+                {(a.kron_tedavisi || a.veneer_tedavisi) && (
                     <CollapsibleSection
                         icon="👑" iconColor="blue"
-                        title="Full Kaplama Planı"
-                        badge={<span style={{ color: "var(--success)", fontSize: "0.85rem" }}>✅ Uygun</span>}
-                        subtitle={`Toplam ${a.full_kaplama_plani.toplam_dis_sayisi || "?"} diş — Tahmini ${a.full_kaplama_plani.tahmini_seans || "?"} seans`}
-                        defaultOpen={true}
+                        title="Protetik Değerlendirme"
+                        subtitle="Kron & Veneer uygunluğu"
                     >
                         <div className="report-content">
-                            {a.full_kaplama_plani.anterior_plan && (
+                            {a.kron_tedavisi && (
                                 <div className="plan-block">
-                                    <h4>🦷 Anterior Bölge (Ön Dişler)</h4>
-                                    <p>{a.full_kaplama_plani.anterior_plan}</p>
+                                    <h4>👑 Kron Tedavisi {a.kron_tedavisi.uygunluk ?
+                                        <span style={{ color: "var(--success)", fontSize: "0.85rem" }}> ✅ Uygun</span> :
+                                        <span style={{ color: "var(--danger)", fontSize: "0.85rem" }}> ❌ Uygun Değil</span>}
+                                    </h4>
+                                    {a.kron_tedavisi.uygun_disler?.length > 0 && (
+                                        <div className="tooth-list" style={{ marginBottom: 8 }}>
+                                            {a.kron_tedavisi.uygun_disler.map((d, i) => <span key={i} className="tooth-tag crown">{d}</span>)}
+                                        </div>
+                                    )}
+                                    {a.kron_tedavisi.malzeme && <p><strong>Malzeme:</strong> {a.kron_tedavisi.malzeme}</p>}
+                                    {a.kron_tedavisi.kanal_riski && <p className="risk-text">⚠️ {a.kron_tedavisi.kanal_riski}</p>}
                                 </div>
                             )}
-                            {a.full_kaplama_plani.posterior_plan && (
+                            {a.veneer_tedavisi && (
                                 <div className="plan-block">
-                                    <h4>🦷 Posterior Bölge (Arka Dişler)</h4>
-                                    <p>{a.full_kaplama_plani.posterior_plan}</p>
-                                </div>
-                            )}
-                            {a.full_kaplama_plani.malzeme_karsilastirmasi && (
-                                <div className="plan-block highlight">
-                                    <h4>📊 Malzeme Karşılaştırması</h4>
-                                    <p>{a.full_kaplama_plani.malzeme_karsilastirmasi}</p>
-                                </div>
-                            )}
-                        </div>
-                    </CollapsibleSection>
-                )}
-
-                {/* Kron Tedavisi */}
-                {a.kron_tedavisi && (
-                    <CollapsibleSection
-                        icon="👑" iconColor="blue"
-                        title="Kron Tedavisi Değerlendirmesi"
-                        badge={
-                            <span style={{ color: a.kron_tedavisi.uygunluk ? "var(--success)" : "var(--danger)", fontSize: "0.85rem" }}>
-                                {a.kron_tedavisi.uygunluk ? "✅ Uygun" : "❌ Uygun Değil"}
-                            </span>
-                        }
-                        subtitle="Kron tedavisi fizibilite analizi"
-                        defaultOpen={true}
-                    >
-                        <div className="report-content">
-                            <p>{a.kron_tedavisi.detay}</p>
-                            {a.kron_tedavisi.uygun_disler?.length > 0 && (
-                                <><p style={{ marginTop: 12 }}><strong>Uygun Dişler:</strong></p>
-                                    <div className="tooth-list">{a.kron_tedavisi.uygun_disler.map((d, i) => <span key={i} className="tooth-tag crown">{d}</span>)}</div></>
-                            )}
-                            {a.kron_tedavisi.malzeme_onerisi && <p style={{ marginTop: 12 }}><strong>Malzeme Önerisi:</strong> {a.kron_tedavisi.malzeme_onerisi}</p>}
-                            {a.kron_tedavisi.kesim_detayi && <p style={{ marginTop: 8 }}><strong>Kesim Detayı:</strong> {a.kron_tedavisi.kesim_detayi}</p>}
-                            {a.kron_tedavisi.riskler && <p style={{ marginTop: 8 }}><strong>Riskler:</strong> {a.kron_tedavisi.riskler}</p>}
-                            {a.kron_tedavisi.kanal_tedavisi_riski && (
-                                <div className="risk-warning">
-                                    ⚠️ <strong>Kanal Tedavisi Riski:</strong> {a.kron_tedavisi.kanal_tedavisi_riski}
+                                    <h4>✨ Veneer Tedavisi {a.veneer_tedavisi.uygunluk ?
+                                        <span style={{ color: "var(--success)", fontSize: "0.85rem" }}> ✅ Uygun</span> :
+                                        <span style={{ color: "var(--danger)", fontSize: "0.85rem" }}> ❌ Uygun Değil</span>}
+                                    </h4>
+                                    {a.veneer_tedavisi.uygun_disler?.length > 0 && (
+                                        <div className="tooth-list" style={{ marginBottom: 8 }}>
+                                            {a.veneer_tedavisi.uygun_disler.map((d, i) => <span key={i} className="tooth-tag veneer">{d}</span>)}
+                                        </div>
+                                    )}
+                                    {a.veneer_tedavisi.prep_tipi && <p><strong>Prep:</strong> {a.veneer_tedavisi.prep_tipi}</p>}
+                                    {a.veneer_tedavisi.not && <p>{a.veneer_tedavisi.not}</p>}
                                 </div>
                             )}
                         </div>
                     </CollapsibleSection>
                 )}
 
-                {/* Veneer Tedavisi */}
-                {a.veneer_tedavisi && (
-                    <CollapsibleSection
-                        icon="✨" iconColor="green"
-                        title="Veneer Tedavisi Değerlendirmesi"
-                        badge={
-                            <span style={{ color: a.veneer_tedavisi.uygunluk ? "var(--success)" : "var(--danger)", fontSize: "0.85rem" }}>
-                                {a.veneer_tedavisi.uygunluk ? "✅ Uygun" : "❌ Uygun Değil"}
-                            </span>
-                        }
-                        subtitle="Laminate veneer fizibilite analizi"
-                        defaultOpen={true}
-                    >
-                        <div className="report-content">
-                            <p>{a.veneer_tedavisi.detay}</p>
-                            {a.veneer_tedavisi.uygun_disler?.length > 0 && (
-                                <><p style={{ marginTop: 12 }}><strong>Uygun Dişler:</strong></p>
-                                    <div className="tooth-list">{a.veneer_tedavisi.uygun_disler.map((d, i) => <span key={i} className="tooth-tag veneer">{d}</span>)}</div></>
-                            )}
-                            {a.veneer_tedavisi.prep_tipi && <p style={{ marginTop: 12 }}><strong>Prep Tipi:</strong> {a.veneer_tedavisi.prep_tipi}</p>}
-                            {a.veneer_tedavisi.estetik_beklenti && <p style={{ marginTop: 8 }}><strong>Estetik Beklenti:</strong> {a.veneer_tedavisi.estetik_beklenti}</p>}
-                            {a.veneer_tedavisi.kanal_tedavisi_riski && (
-                                <div className="risk-warning">
-                                    ⚠️ <strong>Kanal Tedavisi Riski:</strong> {a.veneer_tedavisi.kanal_tedavisi_riski}
-                                </div>
-                            )}
-                        </div>
-                    </CollapsibleSection>
-                )}
-
-                {/* Kanal Tedavisi Riski */}
-                {a.kanal_tedavisi_riski && (
+                {/* Kanal Riski */}
+                {a.kanal_tedavisi_riski && a.kanal_tedavisi_riski.riskli_disler?.length > 0 && (
                     <CollapsibleSection
                         icon="🔬" iconColor="yellow"
-                        title="Kanal Tedavisi Risk Değerlendirmesi"
+                        title="Kanal Tedavisi Riski"
                         badge={<SeverityBadge level={a.kanal_tedavisi_riski.risk_seviyesi} />}
-                        subtitle="Kesim sırasında pulpa hasarı riski"
                         defaultOpen={false}
                     >
                         <div className="report-content">
-                            <p>{a.kanal_tedavisi_riski.aciklama}</p>
-                            {a.kanal_tedavisi_riski.riskli_disler?.length > 0 && (
-                                <>{a.kanal_tedavisi_riski.riskli_disler.map((d, i) => (
-                                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                                        <span className="tooth-tag canal">{d.dis_no}</span><span style={{ fontSize: "0.85rem" }}>{d.risk}</span>
-                                    </div>
-                                ))}</>
-                            )}
-                            {a.kanal_tedavisi_riski.onleyici_tedbirler && (
-                                <div style={{ marginTop: 16, padding: 12, background: "var(--info-bg)", borderRadius: "var(--radius-sm)", fontSize: "0.9rem" }}>
-                                    💡 <strong>Önleyici Tedbirler:</strong> {a.kanal_tedavisi_riski.onleyici_tedbirler}
+                            {a.kanal_tedavisi_riski.riskli_disler.map((d, i) => (
+                                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                                    <span className="tooth-tag canal">{d.dis_no}</span>
+                                    <span style={{ fontSize: "0.85rem" }}>{d.risk}</span>
                                 </div>
-                            )}
+                            ))}
                         </div>
                     </CollapsibleSection>
                 )}
 
-                {/* İmplant Değerlendirme */}
-                {a.implant_degerlendirme && (
+                {/* İmplant */}
+                {a.implant_degerlendirme && a.implant_degerlendirme.gerekli && (
                     <CollapsibleSection
                         icon="🔩" iconColor="red"
-                        title="İmplant / Köprü Değerlendirmesi"
-                        badge={
-                            <span style={{ color: a.implant_degerlendirme.gerekli ? "var(--warning)" : "var(--success)", fontSize: "0.85rem" }}>
-                                {a.implant_degerlendirme.gerekli ? "⚠️ İmplant Gerekli" : "✅ İmplant Gerekmez"}
-                            </span>
-                        }
-                        subtitle="Eksik diş bölgeleri ve restorasyon seçenekleri"
-                        defaultOpen={true}
+                        title="İmplant Değerlendirmesi"
+                        badge={<span style={{ color: "var(--warning)", fontSize: "0.85rem" }}>⚠️ İmplant Gerekli</span>}
+                        defaultOpen={false}
                     >
                         <div className="report-content">
-                            <p>{a.implant_degerlendirme.detay}</p>
-                            {a.implant_degerlendirme.gerekli_bolgeler?.length > 0 && (
-                                <>{a.implant_degerlendirme.gerekli_bolgeler.map((b, i) => (
-                                    <div key={i} className="card" style={{ marginTop: 8, padding: 16 }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                                            <span className="tooth-tag implant">{b.dis_no}</span><strong>{b.bolge}</strong>
-                                        </div>
-                                        <p style={{ fontSize: "0.85rem", marginBottom: 4 }}><strong>Kemik Durumu:</strong> {b.kemik_durumu}</p>
-                                        <p style={{ fontSize: "0.85rem" }}><strong>Öneri:</strong> {b.oneri}</p>
-                                    </div>
-                                ))}</>
-                            )}
-                            {a.implant_degerlendirme.kopru_alternatifi && <p style={{ marginTop: 12 }}><strong>Köprü Alternatifi:</strong> {a.implant_degerlendirme.kopru_alternatifi}</p>}
+                            {a.implant_degerlendirme.bolgeler?.map((b, i) => (
+                                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                                    <span className="tooth-tag implant">{b.dis_no}</span>
+                                    <span style={{ fontSize: "0.85rem" }}>{b.oneri}</span>
+                                </div>
+                            ))}
+                            {/* backward compat for old format */}
+                            {a.implant_degerlendirme.gerekli_bolgeler?.map((b, i) => (
+                                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                                    <span className="tooth-tag implant">{b.dis_no}</span>
+                                    <span style={{ fontSize: "0.85rem" }}>{b.oneri}</span>
+                                </div>
+                            ))}
                         </div>
                     </CollapsibleSection>
                 )}
 
                 {/* Tedavi Planı */}
-                {a.tedavi_plani && (
+                {a.tedavi_plani && a.tedavi_plani.adimlar?.length > 0 && (
                     <CollapsibleSection
                         icon="📋" iconColor="blue"
                         title="Tedavi Planı"
-                        subtitle={`Tahmini toplam seans: ${a.tedavi_plani.toplam_tahmini_seans || "—"}`}
-                        defaultOpen={true}
+                        subtitle={`Tahmini ${a.tedavi_plani.toplam_tahmini_seans || "?"} seans`}
                     >
                         <div className="report-content">
-                            {a.tedavi_plani.adimlar?.length > 0 && (
-                                <div className="treatment-timeline">
-                                    {a.tedavi_plani.adimlar.map((adim, i) => (
-                                        <div key={i} className="treatment-item">
-                                            <div className="priority">
-                                                {adim.oncelik === "yuksek" ? "🔴" : adim.oncelik === "orta" ? "🟡" : "🟢"} Adım {adim.sira} — {adim.tahmini_seans || "?"} seans
-                                            </div>
-                                            <h4>{adim.baslik}</h4>
-                                            <p>{adim.aciklama}</p>
+                            <div className="treatment-timeline">
+                                {a.tedavi_plani.adimlar.map((adim, i) => (
+                                    <div key={i} className="treatment-item">
+                                        <div className="priority">
+                                            {adim.oncelik === "yuksek" ? "🔴" : adim.oncelik === "orta" ? "🟡" : "🟢"} Adım {adim.sira} — {adim.tahmini_seans || "?"} seans
                                         </div>
-                                    ))}
+                                        <h4>{adim.baslik}</h4>
+                                        <p>{adim.aciklama}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </CollapsibleSection>
+                )}
+
+                {/* ★ ALTERNATİF PLANLAR — new section */}
+                {a.alternatif_planlar && a.alternatif_planlar.length > 0 && (
+                    <CollapsibleSection
+                        icon="🎯" iconColor="blue"
+                        title="Alternatif Tedavi Planları"
+                        subtitle="Farklı tedavi senaryoları"
+                        defaultOpen={true}
+                    >
+                        <div className="alt-plans-grid">
+                            {a.alternatif_planlar.map((plan, i) => (
+                                <div key={i} className={`alt-plan-card ${i === 0 ? "recommended" : ""}`}>
+                                    <div className="alt-plan-header">
+                                        <span className="alt-plan-name">{plan.plan_adi}</span>
+                                        {i === 0 && <span className="alt-plan-badge">Önerilen</span>}
+                                        <span className="alt-plan-seans">{plan.tahmini_seans} seans</span>
+                                    </div>
+                                    <p className="alt-plan-ozet">{plan.ozet}</p>
+                                    {plan.detaylar && (
+                                        <div className="alt-plan-details">
+                                            {plan.detaylar.veneer && <div className="alt-plan-row"><span className="alt-label veneer-label">Veneer</span><span>{plan.detaylar.veneer}</span></div>}
+                                            {plan.detaylar.kron && <div className="alt-plan-row"><span className="alt-label crown-label">Kron</span><span>{plan.detaylar.kron}</span></div>}
+                                            {plan.detaylar.implant && <div className="alt-plan-row"><span className="alt-label implant-label">İmplant</span><span>{plan.detaylar.implant}</span></div>}
+                                            {plan.detaylar.kanal && <div className="alt-plan-row"><span className="alt-label canal-label">Kanal</span><span>{plan.detaylar.kanal}</span></div>}
+                                            {plan.detaylar.diger && <div className="alt-plan-row"><span className="alt-label other-label">Diğer</span><span>{plan.detaylar.diger}</span></div>}
+                                        </div>
+                                    )}
+                                    <div className="alt-plan-pros-cons">
+                                        {plan.avantaj && <div className="alt-pro">✅ {plan.avantaj}</div>}
+                                        {plan.dezavantaj && <div className="alt-con">⚠️ {plan.dezavantaj}</div>}
+                                    </div>
                                 </div>
-                            )}
-                            {a.tedavi_plani.onemli_notlar?.length > 0 && (
-                                <div style={{ marginTop: 20 }}>
-                                    <strong>Önemli Notlar:</strong>
-                                    <ul style={{ marginTop: 8, paddingLeft: 20 }}>
-                                        {a.tedavi_plani.onemli_notlar.map((not, i) => (
-                                            <li key={i} style={{ marginBottom: 4, fontSize: "0.9rem", color: "var(--text-secondary)" }}>{not}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
+                            ))}
                         </div>
                     </CollapsibleSection>
                 )}
@@ -417,17 +360,15 @@ export default function RaporPage() {
                     <div>
                         <p>
                             <strong>Önemli Uyarı:</strong> Bu rapor yapay zeka destekli bir ön değerlendirme niteliğindedir
-                            ve kesin tanı yerine geçmez. Tedavi kararları mutlaka bir diş hekimi muayenesi,
-                            klinik değerlendirme ve gerekli radyografik incelemeler sonrasında verilmelidir.
-                            İSTADENTAL olarak profesyonel muayene için randevu almanızı öneriyoruz.
+                            ve kesin tanı yerine geçmez. Tedavi kararları mutlaka bir diş hekimi muayenesi sonrasında verilmelidir.
                         </p>
                     </div>
                 </div>
 
                 <div className="report-actions">
-                    <button className="btn btn-secondary" onClick={handlePrint}>🖨️ Raporu Yazdır</button>
-                    <button className="btn btn-secondary" onClick={() => router.push("/gecmis")}>📂 Geçmiş Analizler</button>
-                    <button className="btn btn-primary" onClick={handleNewAnalysis}>🔄 Yeni Analiz</button>
+                    <button className="btn btn-secondary" onClick={() => window.print()}>🖨️ Yazdır</button>
+                    <button className="btn btn-secondary" onClick={() => router.push("/gecmis")}>📂 Geçmiş</button>
+                    <button className="btn btn-primary" onClick={() => router.push("/analiz")}>🔄 Yeni Analiz</button>
                 </div>
             </div>
             <Footer />
