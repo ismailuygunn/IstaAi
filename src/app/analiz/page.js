@@ -101,7 +101,30 @@ export default function AnalizPage() {
         );
     };
 
-    const handlePhotoDrop = useCallback((slotId, e) => {
+    // Compress image to max 1200px, JPEG 0.7 quality
+    const compressImage = (file) => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const MAX = 1200;
+                let w = img.width, h = img.height;
+                if (w > MAX || h > MAX) {
+                    if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+                    else { w = Math.round(w * MAX / h); h = MAX; }
+                }
+                const canvas = document.createElement("canvas");
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, w, h);
+                const compressed = canvas.toDataURL("image/jpeg", 0.7);
+                resolve(compressed);
+            };
+            img.src = URL.createObjectURL(file);
+        });
+    };
+
+    const handlePhotoDrop = useCallback(async (slotId, e) => {
         e.preventDefault();
         e.stopPropagation();
         const file = e.dataTransfer?.files?.[0] || e.target?.files?.[0];
@@ -116,14 +139,12 @@ export default function AnalizPage() {
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            setPhotos((prev) => ({
-                ...prev,
-                [slotId]: { file, preview: ev.target.result, base64: ev.target.result },
-            }));
-        };
-        reader.readAsDataURL(file);
+        const compressed = await compressImage(file);
+        const preview = URL.createObjectURL(file);
+        setPhotos((prev) => ({
+            ...prev,
+            [slotId]: { file, preview, base64: compressed },
+        }));
     }, []);
 
     const removePhoto = (slotId) => {
@@ -190,8 +211,17 @@ export default function AnalizPage() {
             });
 
             if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || "Analiz sırasında bir hata oluştu");
+                const errText = await res.text().catch(() => "");
+                let errMsg = "Analiz sırasında bir hata oluştu";
+                try {
+                    const errData = JSON.parse(errText);
+                    errMsg = errData.error || errMsg;
+                } catch {
+                    if (res.status === 413) errMsg = "Fotoğraflar çok büyük. Daha düşük çözünürlüklü fotoğraflar deneyin.";
+                    else if (res.status === 504) errMsg = "Analiz zaman aşımına uğradı. Tekrar deneyin.";
+                    else errMsg = `Sunucu hatası (${res.status}): ${errText.slice(0, 100)}`;
+                }
+                throw new Error(errMsg);
             }
 
             const data = await res.json();
