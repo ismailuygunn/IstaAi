@@ -1,32 +1,43 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 export async function POST(request) {
-    try {
-        const { patientInfo, images } = await request.json();
+  try {
+    const { patientInfo, images } = await request.json();
 
-        if (!images || images.length < 4) {
-            return Response.json(
-                { error: "En az 4 zorunlu fotoğraf gereklidir." },
-                { status: 400 }
-            );
-        }
+    if (!images || images.length < 4) {
+      return Response.json(
+        { error: "En az 4 zorunlu fotoğraf gereklidir." },
+        { status: 400 }
+      );
+    }
 
-        const apiKey = process.env.OPENAI_API_KEY;
-        if (!apiKey) {
-            return Response.json(
-                { error: "API anahtarı yapılandırılmamış." },
-                { status: 500 }
-            );
-        }
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return Response.json(
+        { error: "Gemini API anahtarı yapılandırılmamış." },
+        { status: 500 }
+      );
+    }
 
-        // Build image content for GPT-4o
-        const imageContents = images.map((img) => ({
-            type: "image_url",
-            image_url: {
-                url: img.base64,
-                detail: "high",
-            },
-        }));
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-preview-05-06" });
 
-        const systemPrompt = `Sen çok deneyimli bir diş hekimi ve protetik uzmanısın. Sana verilen ağız içi fotoğrafları detaylı analiz edeceksin.
+    // Build image parts for Gemini
+    const imageParts = images.map((img) => {
+      // Extract base64 data and mime type from data URL
+      const matches = img.base64.match(/^data:(.+);base64,(.+)$/);
+      if (!matches) {
+        return null;
+      }
+      return {
+        inlineData: {
+          mimeType: matches[1],
+          data: matches[2],
+        },
+      };
+    }).filter(Boolean);
+
+    const prompt = `Sen çok deneyimli bir diş hekimi ve protetik uzmanısın. Sana verilen ağız içi fotoğrafları detaylı analiz edeceksin.
 
 HASTA BİLGİLERİ:
 - Ad Soyad: ${patientInfo.fullName}
@@ -51,6 +62,8 @@ DETAYLI ANALİZ TALİMATLARI:
 - İmplant değerlendirmesi: eksik diş bölgeleri, kemik yeterliliği tahmini, köprü alternatifi karşılaştırması
 - Kanal tedavisi riski: hangi dişlerde kron/veneer kesimi sırasında kanal tedavisi gerekebilir, risk seviyesi ve nedenleri
 - Tedavi planı: öncelik sırası, tahmini seans sayısı, önemli uyarılar
+
+Lütfen bu hastanın ağız içi fotoğraflarını detaylı analiz et. Fotoğraflar sırasıyla: ${images.map((img) => img.title).join(", ")}.
 
 YANITINI MUTLAKA AŞAĞIDAKİ JSON FORMATINDA VER. Sadece JSON döndür, başka hiçbir şey ekleme:
 
@@ -127,85 +140,52 @@ YANITINI MUTLAKA AŞAĞIDAKİ JSON FORMATINDA VER. Sadece JSON döndür, başka 
   }
 }`;
 
-        const userMessage = [
-            {
-                type: "text",
-                text: `Lütfen bu hastanın ağız içi fotoğraflarını detaylı analiz et. Fotoğraflar sırasıyla: ${images.map((img) => img.title).join(", ")}. Yanıtını SADECE JSON formatında ver.`,
-            },
-            ...imageContents,
-        ];
+    const result = await model.generateContent([prompt, ...imageParts]);
+    const response = result.response;
+    const content = response.text();
 
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                model: "gpt-4o",
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: userMessage },
-                ],
-                max_tokens: 4096,
-                temperature: 0.3,
-            }),
-        });
-
-        if (!response.ok) {
-            const errBody = await response.text();
-            console.error("OpenAI API Error:", errBody);
-            return Response.json(
-                { error: "AI analizi sırasında bir hata oluştu. Lütfen tekrar deneyin." },
-                { status: 500 }
-            );
-        }
-
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content;
-
-        if (!content) {
-            return Response.json(
-                { error: "AI'dan yanıt alınamadı." },
-                { status: 500 }
-            );
-        }
-
-        // Parse JSON from response (handle potential markdown code blocks)
-        let analysis;
-        try {
-            let jsonStr = content;
-            // Remove markdown code blocks if present
-            if (jsonStr.includes("```json")) {
-                jsonStr = jsonStr.split("```json")[1].split("```")[0];
-            } else if (jsonStr.includes("```")) {
-                jsonStr = jsonStr.split("```")[1].split("```")[0];
-            }
-            analysis = JSON.parse(jsonStr.trim());
-        } catch (parseErr) {
-            console.error("JSON Parse Error:", parseErr, "Content:", content);
-            // If JSON parsing fails, return the raw text
-            analysis = {
-                genel_degerlendirme: {
-                    ozet: "Analiz tamamlandı",
-                    seviye: "orta",
-                    detay: content,
-                },
-                dis_dis_analiz: [],
-                kron_tedavisi: { uygunluk: false, detay: "Ayrıntılı analiz metni alındı ancak yapılandırılamadı.", uygun_disler: [] },
-                veneer_tedavisi: { uygunluk: false, detay: "Ham analiz metni için genel değerlendirmeye bakınız.", uygun_disler: [] },
-                implant_degerlendirme: { gerekli: false, detay: "Detaylar genel değerlendirmede.", gerekli_bolgeler: [] },
-                kanal_tedavisi_riski: { risk_seviyesi: "orta", aciklama: "Detaylar genel değerlendirmede.", riskli_disler: [] },
-                tedavi_plani: { adimlar: [], toplam_tahmini_seans: "Belirsiz", onemli_notlar: ["Ham analiz metni genel değerlendirme bölümünde yer almaktadır."] },
-            };
-        }
-
-        return Response.json({ analysis });
-    } catch (err) {
-        console.error("API Route Error:", err);
-        return Response.json(
-            { error: "Sunucu hatası: " + err.message },
-            { status: 500 }
-        );
+    if (!content) {
+      return Response.json(
+        { error: "Gemini'dan yanıt alınamadı." },
+        { status: 500 }
+      );
     }
+
+    // Parse JSON from response (handle potential markdown code blocks)
+    let analysis;
+    try {
+      let jsonStr = content;
+      // Remove markdown code blocks if present
+      if (jsonStr.includes("```json")) {
+        jsonStr = jsonStr.split("```json")[1].split("```")[0];
+      } else if (jsonStr.includes("```")) {
+        jsonStr = jsonStr.split("```")[1].split("```")[0];
+      }
+      analysis = JSON.parse(jsonStr.trim());
+    } catch (parseErr) {
+      console.error("JSON Parse Error:", parseErr, "Content:", content);
+      // If JSON parsing fails, return the raw text
+      analysis = {
+        genel_degerlendirme: {
+          ozet: "Analiz tamamlandı",
+          seviye: "orta",
+          detay: content,
+        },
+        dis_dis_analiz: [],
+        kron_tedavisi: { uygunluk: false, detay: "Ayrıntılı analiz metni alındı ancak yapılandırılamadı.", uygun_disler: [] },
+        veneer_tedavisi: { uygunluk: false, detay: "Ham analiz metni için genel değerlendirmeye bakınız.", uygun_disler: [] },
+        implant_degerlendirme: { gerekli: false, detay: "Detaylar genel değerlendirmede.", gerekli_bolgeler: [] },
+        kanal_tedavisi_riski: { risk_seviyesi: "orta", aciklama: "Detaylar genel değerlendirmede.", riskli_disler: [] },
+        tedavi_plani: { adimlar: [], toplam_tahmini_seans: "Belirsiz", onemli_notlar: ["Ham analiz metni genel değerlendirme bölümünde yer almaktadır."] },
+      };
+    }
+
+    return Response.json({ analysis });
+  } catch (err) {
+    console.error("API Route Error:", err);
+    return Response.json(
+      { error: "Sunucu hatası: " + err.message },
+      { status: 500 }
+    );
+  }
 }
