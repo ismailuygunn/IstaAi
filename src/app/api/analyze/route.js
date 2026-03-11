@@ -34,8 +34,10 @@ export async function POST(request) {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        // KESİN KURAL: Varsayılan model her zaman Gemini 3.1 Pro
-        const modelName = process.env.GEMINI_MODEL || "gemini-3.1-pro-preview";
+        // KESİN KURAL: Google'ın en güçlü mevcut modeli
+        // gemini-3.1-pro-preview API'de MEVCUT DEĞİL — test edildi ve doğrulandı
+        const modelName = process.env.GEMINI_MODEL || "gemini-2.5-pro";
+        console.log(`[ISTADENTAL] Using model: ${modelName}`);
         const model = genAI.getGenerativeModel({ model: modelName });
 
         const imageParts = images.map((img) => {
